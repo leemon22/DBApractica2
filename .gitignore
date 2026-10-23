@@ -1,0 +1,35 @@
+# --- Salidas de compilación de NetBeans / Ant ---
+# Nunca subir binarios compilados ni empaquetados
+/build/
+/dist/
+*.class
+
+# --- Configuraciones locales y privadas de NetBeans ---
+# Contiene preferencias específicas de la máquina y usuario local
+/nbproject/private/
+
+# --- Configuración de Neovim / Eclipse JDTLS ---
+# Si usas el archivo .classpath local para tu LSP, no debe contaminar el repo de tus compañeros
+.classpath
+.project
+.settings/
+
+# --- Archivos del sistema y temporales ---
+.DS_Store
+Thumbs.db
+*~
+*.swp
+*.swo
+
+# --- Archivos temporales generados por JADE ---
+APDescription.txt
+MTPs-Main-Container.txt
+
+# --- Entregables empaquetados ---
+*.zip
+
+# --- Configuración local de Neovim ---
+.nvim.lua
+
+# -- Librerías externas y dependencias ---
+/lib
