@@ -33,3 +33,6 @@ MTPs-Main-Container.txt
 
 # -- Librerías externas y dependencias ---
 /lib
+
+# -- Archivo donde almacenamos token y dirección del servidor
+config.properties
