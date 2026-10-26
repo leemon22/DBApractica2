@@ -8,17 +8,17 @@ import java.util.Properties;
 // Lee la URL de la API y el token de autenticación desde un archivo de propiedades.
 public class Configuracion {
 
-    private final String urlLaboratorio;
+    private final String urlApi;
     private final String token;
 
     public Configuracion(String rutaArchivo) {
         Properties props = new Properties();
         try (FileInputStream fis = new FileInputStream(rutaArchivo)) {
             props.load(fis);
-            this.urlLaboratorio = props.getProperty("DBA_LAB_URL");
+            this.urlApi = props.getProperty("DBA_API_URL");
             this.token = props.getProperty("DBA_TOKEN");
 
-            if (this.urlLaboratorio == null || this.token == null) {
+            if (this.urlApi == null || this.token == null) {
                 throw new IllegalStateException("Faltan variables en el archivo de configuración.");
             }
         } catch (IOException e) {
@@ -28,7 +28,7 @@ public class Configuracion {
     }
 
     public String getUrlLaboratorio() {
-        return urlLaboratorio;
+        return urlApi;
     }
 
     public String getToken() {
