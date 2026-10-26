@@ -6,6 +6,11 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
 
+// Cliente HTTP para interactuar con la API de DBA
+// Precondiciones: Se debe proporcionar la URL base de la API y un token de autenticación válido al
+// crear una instancia de esta clase.
+// Para ello existe la clase Configuración, que puede leer un archivo de configuración y extraer de
+// él la URL y el token.
 public class ClienteHttpDba {
 
     private final HttpClient httpClient;
