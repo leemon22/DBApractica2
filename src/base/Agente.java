@@ -44,5 +44,6 @@ public final class Agente extends Agent {
     protected void takeDown() {
         // Mostramos un mensaje cuando el agente termina su ejecución
         System.out.println("Agente " + getLocalName() + " terminando ejecución.");
+        // Cerrar la plataforma JADE al terminar el agente.
     }
 }
