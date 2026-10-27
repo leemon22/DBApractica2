@@ -44,11 +44,30 @@ public final class BucleAgentico<S, A> extends SimpleBehaviour {
                 terminado = true;
             }
         } catch (Exception e) {
-            // Si hay un error en cualquier paso, lo registramos y marcamos el comportamiento como
-            // terminado.
-            e.printStackTrace();
+
+            EstadoControl estado = entorno.getEstadoActual();
+
+            if (estado != null && !estado.isActivo()
+                    && estado.runStatus()
+                        != EstadoControl.RunStatus.UNKNOWN) {
+
+                System.out.println(
+                    "Ejecucion finalizada: "
+                    + estado.runStatus()
+                    + " | Motivo: " + estado.reasonCode()
+                );
+
+            } else {
+                System.err.println(
+                    "Error durante la ejecucion del agente: "
+                    + e.getMessage()
+                );
+                e.printStackTrace();
+            }
+
             terminado = true;
         }
+
     }
 
     // Condición de parada: el runStatus deja de ser ACTIVE o se produce un error.
