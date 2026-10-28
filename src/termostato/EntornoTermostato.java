@@ -76,13 +76,6 @@ public class EntornoTermostato implements Entorno<SensoresTermostato, AccionTerm
     }
 
     
-    private static class EjecucionFinalizadaException extends Exception {
-
-        public EjecucionFinalizadaException(EstadoControl estado) {
-            super("Ejecucion finalizada: " + estado.runStatus()
-                    + " | Motivo: " + estado.reasonCode());
-        }
-    }
 
     
     
@@ -132,18 +125,14 @@ public class EntornoTermostato implements Entorno<SensoresTermostato, AccionTerm
         actualizarEstado(control);
 
         
-        if (!estadoActual.isActivo()) {
-            System.out.println(
-                "Ejecucion terminada: "
-                + estadoActual.runStatus()
-                + " | Motivo: "
-                + estadoActual.reasonCode()
-            );
 
+        if (!estadoActual.isActivo()) {
             throw new IllegalStateException(
-                "El laboratorio ha finalizado el run"
+                "Run finalizado: " + estadoActual.runStatus()
+                + " | Motivo: " + estadoActual.reasonCode()
             );
         }
+
 
 
         return json.getAsJsonObject("value");
@@ -212,20 +201,10 @@ public class EntornoTermostato implements Entorno<SensoresTermostato, AccionTerm
         JsonObject control = respuestaInicio
                 .getAsJsonObject("control");
 
-        runId = control.get("runId").getAsString();
 
-        String estado = control.get("runStatus").getAsString();
+        actualizarEstado(control);
+        runId = estadoActual.runId();
 
-        String motivo = control.has("reasonCode")
-                && !control.get("reasonCode").isJsonNull()
-                ? control.get("reasonCode").getAsString()
-                : null;
-
-        estadoActual = new EstadoControl(
-                runId,
-                EstadoControl.RunStatus.valueOf(estado),
-                motivo
-        );
 
         System.out.println("Run iniciado: " + runId);
         System.out.println("Estado: " + estadoActual.runStatus());
@@ -246,6 +225,8 @@ public class EntornoTermostato implements Entorno<SensoresTermostato, AccionTerm
 
     
     @Override
+    
+
     public SensoresTermostato leerSensores() throws Exception {
 
         JsonObject temperatura =
@@ -257,13 +238,24 @@ public class EntornoTermostato implements Entorno<SensoresTermostato, AccionTerm
         JsonObject objetivo =
                 consultarSensor("thermostat.target");
 
+        double tempActual = temperatura.get("celsius").getAsDouble();
+        double inferior = limites.get("lower").getAsDouble();
+        double superior = limites.get("upper").getAsDouble();
+        double orientativa = objetivo.get("celsius").getAsDouble();
+
+        System.out.println("\n--- PERCEPCION DEL AGENTE ---");
+        System.out.println("Temperatura actual: " + tempActual + " °C");
+        System.out.println("Limites permitidos: [" + inferior + ", " + superior + "] °C");
+        System.out.println("Temperatura orientativa: " + orientativa + " °C");
+
         return new SensoresTermostato(
-                temperatura.get("celsius").getAsDouble(),
-                limites.get("lower").getAsDouble(),
-                limites.get("upper").getAsDouble(),
-                objetivo.get("celsius").getAsDouble()
+                tempActual,
+                inferior,
+                superior,
+                orientativa
         );
     }
+
 
 
     

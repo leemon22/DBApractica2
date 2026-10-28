@@ -19,40 +19,30 @@ import termostato.PoliticaTermostato;
  */
 public class Practica21 {
 
-	/**
-	 * @param args the command line arguments
-	 */
-	public static void main(String[] args) {
-            try {
-            // Iniciar la plataforma JADE.
+    public static void main(String[] args) {
+        try {
+            // Iniciar JADE con su interfaz gráfica.
             Runtime runtime = Runtime.instance();
             runtime.setCloseVM(true);
 
             Profile perfil = new ProfileImpl();
+            perfil.setParameter(Profile.GUI, "true");
+
             AgentContainer contenedor =
                     runtime.createMainContainer(perfil);
 
-            // Crear los componentes del termostato.
-            EntornoTermostato entorno =
-                    new EntornoTermostato();
+            // Crear el entorno y la política del termostato.
+            EntornoTermostato entorno = new EntornoTermostato();
+            PoliticaTermostato politica = new PoliticaTermostato();
 
-            PoliticaTermostato politica =
-                    new PoliticaTermostato();
-
-            // Crear el agente utilizando la clase Base.
+            // Crear e iniciar el agente.
             AgentController agente = contenedor.createNewAgent(
                     "AgenteTermostato",
                     "base.Agente",
                     new Object[]{entorno, politica}
             );
 
-            // Iniciar el agente.
             agente.start();
-          
-         
-
-            // Cerrar el contenedor principal de JADE.
-            contenedor.kill();
 
         } catch (Exception e) {
             System.err.println(
@@ -60,6 +50,5 @@ public class Practica21 {
             );
             e.printStackTrace();
         }
-	}
-	
+    }
 }
