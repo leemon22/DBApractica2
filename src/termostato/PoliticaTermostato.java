@@ -10,31 +10,26 @@ import base.Politica;
  *
  * @author martinhernandezruiz
  */
-public class PoliticaTermostato implements Politica<SensoresTermostato, AccionTermostato> {
+public class PoliticaTermostato
+        implements Politica<SensoresTermostato, AccionTermostato> {
 
     @Override
     public AccionTermostato aplicar(SensoresTermostato sensores) {
 
         double temperatura = sensores.temperatura();
-        double inferior = sensores.limiteInferior();
-        double superior = sensores.limiteSuperior();
-        double objetivo = sensores.orientativa();
 
-        // Si la temperatura alcanza el limite superior,
-        // encendemos la refrigeracion.
-        if (temperatura >= superior) {
+        // Si alcanza el límite superior, encender.
+        if (temperatura >= sensores.limiteSuperior()) {
             return AccionTermostato.ON;
         }
 
-        // Si alcanza el limite inferior,
-        // apagamos la refrigeracion.
-        if (temperatura <= inferior) {
+        // Si alcanza el límite inferior, apagar.
+        if (temperatura <= sensores.limiteInferior()) {
             return AccionTermostato.OFF;
         }
 
-        // Dentro del intervalo utilizamos la
-        // temperatura orientativa como referencia.
-        if (temperatura > objetivo) {
+        // Dentro del intervalo, utilizar el objetivo como referencia.
+        if (temperatura > sensores.orientativa()) {
             return AccionTermostato.ON;
         }
 

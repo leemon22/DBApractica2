@@ -71,11 +71,16 @@ public final class BucleAgentico<S, A> extends SimpleBehaviour {
     }
 
     // Condición de parada: el runStatus deja de ser ACTIVE o se produce un error.
-    @Override
-    public boolean done() {
-        // Solicitamos al agente que se elimine a sí mismo si hemos terminado.
-        if (terminado) myAgent.doDelete();
+   
+        @Override
+        public boolean done() {
+            return terminado;
+        }
 
-        return terminado;
-    }
+        @Override
+        public int onEnd() {
+            myAgent.doDelete();
+            return 0;
+        }
+
 }
