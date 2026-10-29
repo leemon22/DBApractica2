@@ -1,10 +1,7 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Enum.java to edit this template
- */
 package termostato;
 
 /**
+ * Acciones del termostato con su código exacto en la API de DBA Lab.
  *
  * @author martinhernandezruiz
  */

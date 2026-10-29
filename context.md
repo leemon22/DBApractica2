@@ -2,7 +2,7 @@
 # DBA · Práctica 2 — Contexto compartido y guía de continuidad
 
 **Asignatura:** Diseño Basado en Agentes (UGR) · Curso 2026/2027  
-**Última actualización del contexto:** 27/10/2026  
+**Última actualización del contexto:** 29/10/2026  
 **Uso previsto:** incorporar este documento al repositorio y proporcionarlo como contexto a los asistentes de IA de los cuatro integrantes. **No sustituye los guiones oficiales ni el código fuente.**
 
 > **Regla de trabajo para cualquier asistente:** distinguir entre **requisito del profesor**, **decisión del grupo**, **hecho verificado** y **pendiente de verificar**. Nunca tratar una compilación como prueba de funcionamiento, ni una ejecución correcta como validación definitiva del diseño. Revisar primero la versión más reciente de la rama correspondiente y los documentos docentes antes de proponer cambios.
@@ -137,8 +137,10 @@ El entorno representa una cámara refrigerada. Los extremos del intervalo de seg
 - `SensoresTermostato.java`: `record` con `temperatura`, `limiteInferior`, `limiteSuperior`, `orientativa` (`double`). El uso de `record` es decisión del grupo, no exigencia docente.
 - `AccionTermostato.java`: enum `ON`/`OFF` con sus códigos exactos. El uso de `enum` tampoco lo prescribe el profesor.
 - `PoliticaTermostato.java`: implementa `Politica<SensoresTermostato,AccionTermostato>`; política básica: refrigerar si `temperatura >= superior`, apagar si `temperatura <= inferior`, y dentro de límites comparar con `orientativa` (`ON` por encima, `OFF` en caso contrario). Esta **heurística es elección del grupo y no garantía de seguridad para todos los escenarios**; debe defenderse y probarse contra perturbaciones.
-- `EntornoTermostato.java`: implementa `Entorno<SensoresTermostato,AccionTermostato>` y usa `ClienteHttpDba` + Gson para descubrir el reto tipo `THERMOSTAT`, validar sensores/acciones anunciados, iniciar run, leer las tres percepciones, actualizar `EstadoControl`, emitir acción y comprobar `actionStatus`/`runStatus`.
+- `EntornoTermostato.java`: implementa `Entorno<SensoresTermostato,AccionTermostato>` y usa `ClienteHttpDba` + Gson para descubrir el reto tipo `THERMOSTAT`, validar sensores/acciones anunciados, iniciar run, leer las tres percepciones, actualizar `EstadoControl`, emitir acción y comprobar `actionStatus`/`runStatus`. Desde el 29/10, un `runStatus` no reconocido se traduce a `RunStatus.UNKNOWN` (método `convertirEstado`) en lugar de lanzar `IllegalArgumentException`; como no es `ACTIVE`, el bucle se detiene. Se hizo en el paquete `termostato` para no modificar `base` sin consenso; al pasar la lógica común a `base` para Grid, debería moverse allí.
 - `Practica21.java`: punto de entrada que inicia JADE, crea el contenedor principal y el agente `base.Agente` con `EntornoTermostato` y `PoliticaTermostato`.
+
+**Estado en `main` (29/10/2026):** este código está integrado en `main` (PR #2). Se eliminaron los comentarios de plantilla de NetBeans y se añadió una descripción a cada clase. La lógica genérica de DBA Lab (descubrimiento, validación de capacidades, lectura de `control`, sensores y acciones) sigue dentro de `EntornoTermostato`; **pendiente** extraerla a `base` antes de Grid.
 
 **Observación técnica a revisar:** la lógica de excepción y de finalización cambió varias veces durante el desarrollo. La última ejecución satisfactoria confirma terminación normal, pero antes de integrar el proyecto hay que inspeccionar el código exacto, evitar clasificar errores de red como finalización normal y comprobar el caso de estado terminal detectado durante la lectura de sensores. No dar por hecha la corrección de todas las rutas excepcionales basándose solo en las pruebas felices.
 
@@ -162,7 +164,7 @@ Secuencia observada del run **382**: `OFF, ON, OFF, ON, OFF, ON, OFF, OFF, ON, O
 3. **JSON**: añadir Gson al classpath; no es una dependencia prescrita por el guion.
 4. **JADE no cerraba al acabar el agente**: el agente terminaba pero seguía vivo el contenedor principal.
 5. **Intentos descartados**: `AgentController.join()` (no existe), `AgentState.STATE_DELETED` (constante no válida en el entorno usado), `doPlatformExit()` desde `Agent` (no existe), y `getContainerController().kill()` **dentro de** `Agente.takeDown()` (produjo advertencias `Agent did not terminate` y una excepción durante el cierre).
-6. **Cierre observado como funcional:** restaurar `takeDown()` a solo registro de salida; mantener `runtime.setCloseVM(true)` en el lanzador y gestionar `contenedor.kill()` desde un hilo externo en `Practica21.java`, que espera hasta que `agente.getState()` falle con `ControllerException`. **Advertencia:** es la estrategia probada en esa ejecución, pero la condición basada en que `getState()` falle no es un contrato de finalización documentado aquí; revisar robustez con el compañero responsable de Base y evitar reutilizarla ciegamente en Grid o entornos multiagente.
+6. **Cierre observado como funcional:** restaurar `takeDown()` a solo registro de salida; mantener `runtime.setCloseVM(true)` en el lanzador y gestionar `contenedor.kill()` desde un hilo externo en `Practica21.java`, que espera hasta que `agente.getState()` falle con `ControllerException`. **Advertencia:** es la estrategia probada en esa ejecución, pero la condición basada en que `getState()` falle no es un contrato de finalización documentado aquí; revisar robustez con el compañero responsable de Base y evitar reutilizarla ciegamente en Grid o entornos multiagente. **[POR VALIDAR] Ese hilo de cierre no está en el `Practica21.java` de `main` (revisado el 29/10/2026):** solo hay `runtime.setCloseVM(true)`. Comprobar si la plataforma JADE queda abierta al terminar el agente.
 
 ## 7. Grid: siguiente bloque (pendiente)
 
@@ -183,7 +185,7 @@ En la respuesta real de `challenges` se observaron IDs `2` a `8` para primera ta
 
 1. Comparar la rama local con `main` (`git status`, `git diff`, y revisión de los archivos modificados). **No asumir que el archivo local está en GitHub solo porque compila.**
 2. Confirmar que `config.properties`, tokens, secretos y credenciales no están en staging ni en el historial de commits.
-3. Verificar que las dependencias JADE y Gson pueden resolverse al clonar en otra máquina y que el classpath **no depende de rutas absolutas del Mac**.
+3. Verificar que las dependencias JADE y Gson pueden resolverse al clonar en otra máquina y que el classpath **no depende de rutas absolutas del Mac**. `lib/` está en `.gitignore`: cada integrante crea `lib/jade.jar` (de `JADE-bin-4.6.0.zip`) y `lib/gson-2.15.0.jar` (Maven Central); el README lo explica. `DBA_API_URL` debe terminar en `/api/v1`; sin ese prefijo las peticiones fallan (incidencia detectada el 29/10 en un `config.properties` local).
 4. Coordinar la versión del JDK (`javac.source`/`javac.target`), evitando forzar unilateralmente Java 25 a compañeros con otra instalación.
 5. Acordar con el autor del paquete `Base` cualquier modificación en `Agente.java` o `BucleAgentico.java`.
 6. Revisar políticas de errores HTTP, comprobación de capacidades, estados terminales, acciones rechazadas y recuperación ante respuestas perdidas; no reintentar POST de efectos sin determinar su resultado.
@@ -207,4 +209,4 @@ Al recibir este archivo, procede así:
 
 ---
 
-**Resumen de estado al 27/10/2026:** infraestructura `Base` existente; paquete Termostato desarrollado localmente y reto superado de forma demostrada; JADE cerrado sin advertencias en el último run; falta revisar y compartir cambios, verificar integración reproducible en otros equipos, preparar la defensa y comenzar Grid. Este documento no afirma que el código local esté ya integrado en `main`.
+**Resumen de estado al 29/10/2026:** infraestructura `Base` existente; paquete Termostato integrado en `main` y reto superado de forma demostrada (runs 368 y 382); el proyecto compila con JDK 25 desde terminal (`javac`) con `lib/` configurado; defensa del termostato prevista para el 30/10. Pendiente: verificar el cierre de JADE con el `Practica21` actual, extraer la lógica común de DBA Lab a `base` y comenzar Grid.

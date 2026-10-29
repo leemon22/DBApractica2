@@ -1,10 +1,7 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Record.java to edit this template
- */
 package termostato;
 
 /**
+ * Percepción del termostato: temperatura actual, límites permitidos y temperatura orientativa.
  *
  * @author martinhernandezruiz
  */

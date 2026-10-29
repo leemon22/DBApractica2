@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Main.java to edit this template
- */
 package practica2.pkg1;
 
 import jade.core.Profile;
@@ -14,6 +10,7 @@ import termostato.EntornoTermostato;
 import termostato.PoliticaTermostato;
 
 /**
+ * Punto de entrada: arranca JADE y lanza el agente del termostato.
  *
  * @author pj
  */

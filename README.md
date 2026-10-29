@@ -89,13 +89,13 @@ classDiagram
 
 # Estado del proyecto
 - [x] Implementado el paquete Base
-- [ ] Implementado el paquete Termostato
-    - [ ] Implementado SensoresTermostato
-    - [ ] Implementado AccionTermostato 
-    - [ ] Implementado EntornoTermostato
-    - [ ] Implementado PoliticaTermostato
-- [ ] Integrar Base con Termostato
-- [ ] Implementar MundoBloques (segunda parte de la práctica, en Noviembre)
+- [x] Implementado el paquete Termostato
+    - [x] Implementado SensoresTermostato
+    - [x] Implementado AccionTermostato 
+    - [x] Implementado EntornoTermostato
+    - [x] Implementado PoliticaTermostato
+- [x] Integrar Base con Termostato (reto resuelto con `SUCCEEDED`)
+- [ ] Implementar Grid (mundo bidimensional, segunda parte de la práctica, en noviembre)
 
 
 ### Requisitos para ejecutar el proyecto
@@ -116,7 +116,10 @@ lib/
 └── gson-2.15.0.jar
 ```
 
-Las rutas de estas bibliotecas ya están configuradas en `nbproject/project.properties`.
+- `jade.jar`: dentro de `JADE-all-4.6.0.zip` → `JADE-bin-4.6.0.zip` → `jade/lib/jade.jar`.
+- `gson-2.15.0.jar`: se descarga de Maven Central (`https://repo1.maven.org/maven2/com/google/code/gson/gson/2.15.0/gson-2.15.0.jar`).
+
+Las rutas de estas bibliotecas ya están configuradas en `nbproject/project.properties`. La carpeta `lib/` está en `.gitignore`, así que cada integrante debe crearla en su equipo.
 
 ### Configuración de DBA Lab
 
@@ -127,10 +130,21 @@ DBA_API_URL=http://orca.ugr.es:8080/api/v1
 DBA_TOKEN=TU_TOKEN_PERSONAL
 ```
 
+La URL **debe terminar en `/api/v1`**: `ClienteHttpDba` le concatena directamente rutas como `/challenges`, y sin ese prefijo todas las peticiones fallan.
+
 Cada integrante debe utilizar su propio token. El archivo `config.properties` está excluido de Git mediante `.gitignore`.
 
 ### Ejecución
 
 Abrir el proyecto en NetBeans y ejecutar `Practica21.java`.
+
+También se puede compilar y ejecutar desde terminal, situándose en la raíz del proyecto (ahí se busca `config.properties`):
+
+```bash
+javac -d build/classes -cp lib/jade.jar:lib/gson-2.15.0.jar $(find src -name "*.java")
+java -cp build/classes:lib/jade.jar:lib/gson-2.15.0.jar practica2.pkg1.Practica21
+```
+
+En Windows el separador del classpath es `;` en lugar de `:`. Cada ejecución inicia un run real en DBA Lab con el token propio.
 
 Se abrirá la interfaz gráfica de JADE (RMA) y se iniciará automáticamente `AgenteTermostato`. El resultado de las percepciones y acciones se mostrará en la consola de NetBeans.
