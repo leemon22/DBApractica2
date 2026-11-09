@@ -65,7 +65,7 @@ DBApractica2/
 │   │   ├── AccionTermostato.java
 │   │   ├── PoliticaTermostato.java
 │   │   └── EntornoTermostato.java
-│   └── practica2/pkg1/Practica21.java
+│   └── lanzadores/LanzadorTermostato.java   (antes practica2/pkg1/Practica21.java)
 ├── lib/                           # Dependencias JADE/Gson; revisar tracking
 ├── config.properties              # PRIVADO. Nunca versionar.
 ├── .gitignore
@@ -138,7 +138,7 @@ El entorno representa una cámara refrigerada. Los extremos del intervalo de seg
 - `AccionTermostato.java`: enum `ON`/`OFF` con sus códigos exactos. El uso de `enum` tampoco lo prescribe el profesor.
 - `PoliticaTermostato.java`: implementa `Politica<SensoresTermostato,AccionTermostato>`; política básica: refrigerar si `temperatura >= superior`, apagar si `temperatura <= inferior`, y dentro de límites comparar con `orientativa` (`ON` por encima, `OFF` en caso contrario). Esta **heurística es elección del grupo y no garantía de seguridad para todos los escenarios**; debe defenderse y probarse contra perturbaciones.
 - `EntornoTermostato.java`: implementa `Entorno<SensoresTermostato,AccionTermostato>` y usa `ClienteHttpDba` + Gson para descubrir el reto tipo `THERMOSTAT`, validar sensores/acciones anunciados, iniciar run, leer las tres percepciones, actualizar `EstadoControl`, emitir acción y comprobar `actionStatus`/`runStatus`. Desde el 29/10, un `runStatus` no reconocido se traduce a `RunStatus.UNKNOWN` (método `convertirEstado`) en lugar de lanzar `IllegalArgumentException`; como no es `ACTIVE`, el bucle se detiene. Se hizo en el paquete `termostato` para no modificar `base` sin consenso; al pasar la lógica común a `base` para Grid, debería moverse allí.
-- `Practica21.java`: punto de entrada que inicia JADE, crea el contenedor principal y el agente `base.Agente` con `EntornoTermostato` y `PoliticaTermostato`.
+- `LanzadorTermostato.java` (antes `Practica21.java`): punto de entrada que inicia JADE, crea el contenedor principal y el agente `base.Agente` con `EntornoTermostato` y `PoliticaTermostato`.
 
 **Estado en `main` (29/10/2026):** este código está integrado en `main` (PR #2). Se eliminaron los comentarios de plantilla de NetBeans y se añadió una descripción a cada clase. La lógica genérica de DBA Lab (descubrimiento, validación de capacidades, lectura de `control`, sensores y acciones) sigue dentro de `EntornoTermostato`; **pendiente** extraerla a `base` antes de Grid.
 
@@ -164,7 +164,7 @@ Secuencia observada del run **382**: `OFF, ON, OFF, ON, OFF, ON, OFF, OFF, ON, O
 3. **JSON**: añadir Gson al classpath; no es una dependencia prescrita por el guion.
 4. **JADE no cerraba al acabar el agente**: el agente terminaba pero seguía vivo el contenedor principal.
 5. **Intentos descartados**: `AgentController.join()` (no existe), `AgentState.STATE_DELETED` (constante no válida en el entorno usado), `doPlatformExit()` desde `Agent` (no existe), y `getContainerController().kill()` **dentro de** `Agente.takeDown()` (produjo advertencias `Agent did not terminate` y una excepción durante el cierre).
-6. **Cierre observado como funcional:** restaurar `takeDown()` a solo registro de salida; mantener `runtime.setCloseVM(true)` en el lanzador y gestionar `contenedor.kill()` desde un hilo externo en `Practica21.java`, que espera hasta que `agente.getState()` falle con `ControllerException`. **Advertencia:** es la estrategia probada en esa ejecución, pero la condición basada en que `getState()` falle no es un contrato de finalización documentado aquí; revisar robustez con el compañero responsable de Base y evitar reutilizarla ciegamente en Grid o entornos multiagente. **[POR VALIDAR] Ese hilo de cierre no está en el `Practica21.java` de `main` (revisado el 29/10/2026):** solo hay `runtime.setCloseVM(true)`. Comprobar si la plataforma JADE queda abierta al terminar el agente.
+6. **Cierre observado como funcional:** restaurar `takeDown()` a solo registro de salida; mantener `runtime.setCloseVM(true)` en el lanzador y gestionar `contenedor.kill()` desde un hilo externo en el lanzador (entonces `Practica21.java`), que espera hasta que `agente.getState()` falle con `ControllerException`. **Advertencia:** es la estrategia probada en esa ejecución, pero la condición basada en que `getState()` falle no es un contrato de finalización documentado aquí; revisar robustez con el compañero responsable de Base y evitar reutilizarla ciegamente en Grid o entornos multiagente. **[POR VALIDAR] Ese hilo de cierre no está en el lanzador de `main` (`Practica21.java`, hoy `lanzadores/LanzadorTermostato.java`) (revisado el 29/10/2026):** solo hay `runtime.setCloseVM(true)`. Comprobar si la plataforma JADE queda abierta al terminar el agente.
 
 ## 7. Grid: siguiente bloque (pendiente)
 
@@ -209,4 +209,4 @@ Al recibir este archivo, procede así:
 
 ---
 
-**Resumen de estado al 29/10/2026:** infraestructura `Base` existente; paquete Termostato integrado en `main` y reto superado de forma demostrada (runs 368 y 382); el proyecto compila con JDK 25 desde terminal (`javac`) con `lib/` configurado; defensa del termostato prevista para el 30/10. Pendiente: verificar el cierre de JADE con el `Practica21` actual, extraer la lógica común de DBA Lab a `base` y comenzar Grid.
+**Resumen de estado al 29/10/2026:** infraestructura `Base` existente; paquete Termostato integrado en `main` y reto superado de forma demostrada (runs 368 y 382); el proyecto compila con JDK 25 desde terminal (`javac`) con `lib/` configurado; defensa del termostato prevista para el 30/10. Pendiente: verificar el cierre de JADE con el lanzador actual (`LanzadorTermostato`), extraer la lógica común de DBA Lab a `base` y comenzar Grid.
