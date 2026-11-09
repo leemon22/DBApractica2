@@ -2,7 +2,7 @@
 # DBA · Práctica 2 — Contexto compartido y guía de continuidad
 
 **Asignatura:** Diseño Basado en Agentes (UGR) · Curso 2026/2027  
-**Última actualización del contexto:** 29/10/2026  
+**Última actualización del contexto:** 09/11/2026  
 **Uso previsto:** incorporar este documento al repositorio y proporcionarlo como contexto a los asistentes de IA de los cuatro integrantes. **No sustituye los guiones oficiales ni el código fuente.**
 
 > **Regla de trabajo para cualquier asistente:** distinguir entre **requisito del profesor**, **decisión del grupo**, **hecho verificado** y **pendiente de verificar**. Nunca tratar una compilación como prueba de funcionamiento, ni una ejecución correcta como validación definitiva del diseño. Revisar primero la versión más reciente de la rama correspondiente y los documentos docentes antes de proponer cambios.
@@ -17,6 +17,7 @@
 - `guia-api-termostato.md`: sensores, acciones y objetivo del termostato.
 - `guia-api-grid.md`: percepciones, desplazamiento, obstáculos y energía de Grid.
 - `Tema1-Introduccion.pdf`: diapositivas teóricas del Tema 1; el tema define agentes situados, autonomía, percepción, interacción y sistemas multiagente. No confundir conceptos teóricos con requisitos de clases Java.
+- `Tema2-Autonomia.pdf`: diapositivas del Tema 2. Su sección «Ejemplos de resolución de laberintos» (greedy, memoria con penalización, seguimiento de muros/Bug0-Bug1-Bug2, DFS, BFS con fronteras, RTA*/LRTA*) es la base del algoritmo de Grid (sección 7).
 
 **Nota documental:** las copias recibidas de las guías específicas de Termostato y Grid están encabezadas por «Borrador para revisión docente. No publicar todavía». Confirmar con el profesor si existen revisiones posteriores; no asumir que las guías son versiones finales.
 
@@ -27,12 +28,21 @@ La práctica utiliza **Java y JADE** para desarrollar agentes que perciben, deci
 | Termostato | Mantener temperatura dentro de límites hasta resultado oficial `SUCCEEDED` | 5 resolución + 5 diseño/implementación | 20 % |
 | Grid | Alcanzar el objetivo sin colisiones y antes de agotar energía, con mapas iniciales y después desconocidos | 5 primera tanda + 4 segunda tanda + 1 diseño | 35 % |
 
-**Entrega de código y resolución de retos:** miércoles **18/11/2026**. La defensa del termostato está prevista para la semana del 26/10, Grid se desarrolla durante noviembre. Las defensas son grupales, pero la comprensión individual del código puede afectar la nota personal. El vídeo de presentación se evalúa por separado.
+**Entrega de código y resolución de retos:** miércoles **18/11/2026**. La defensa del termostato estaba prevista para la semana del 26/10 (30/10/2026); el grupo considera el bloque cerrado. **[DOCENTE]** Según el calendario del guion hay **una única defensa de Grid**, que abarca las dos tandas, en la **semana del 16/11/2026**, junto con la presentación del vídeo; no hay defensa la semana del 09/11. **[POR VALIDAR]** El calendario es orientativo y el guion no fija el día exacto: confirmar en clase o en PRADO. Las defensas son grupales, pero la comprensión individual del código puede afectar la nota personal. El vídeo de presentación se evalúa por separado.
 
 ## 2. Equipo y organización
 
 - **Equipo de cuatro personas.** Un compañero propuso y desarrolló inicialmente el paquete `base` reutilizable.
-- Propuesta de reparto del trabajo restante entre tres: (1) termostato, (2) Grid/navegación inicial, (3) Grid/exploración y energía. Esta distribución es una **propuesta**, no una asignación confirmada formalmente.
+- **[DECISIÓN GRUPO] Reparto de Grid (propuesto el 09/11/2026):**
+
+| Integrante | Responsabilidad | Tareas |
+|---|---|---|
+| **Rodrigo** (Coordinación, algo más de carga) | Algoritmo de navegación e integración | `PoliticaGrid` con Bug0 con progreso y elección dinámica de mano (sección 7); integración final; estrategia para la segunda tanda. |
+| **Pedro** | Comunicación con DBA Lab | Run exploratorio para medir el consumo de energía; extraer la lógica común de `EntornoTermostato` a `base.EntornoDba` y comprobar que el termostato sigue dando `SUCCEEDED`; implementar `EntornoGrid`. |
+| **Martín** | Tipos, orientación y salvaguardas | `Posicion`, `SensoresGrid`, `AccionGrid` y enum `Direccion` con giros relativos (`izquierda()`, `derecha()`, `retroceso()`, `dx`, `dy`); detección de ciclos; control de energía. |
+| **Cristina** | Simulador, pruebas y vídeo | Simulador local (`Entorno` falso) con los 7 mapas del guion; trazas paso a paso; tabla de resultados por reto; guion del vídeo. |
+
+- Hitos propuestos: **10/11** run exploratorio hecho y `EntornoDba` integrado; **11/11** tipos de Grid y simulador funcionando; **12/11** política resolviendo los 7 mapas en el simulador y después en DBA Lab; **13/11–16/11** segunda tanda; **17/11** código congelado y revisión cruzada (cada integrante explica un módulo ajeno); **18/11** entrega.
 - Evitar cambios no consensuados en `base`, porque debe servir para los dos entornos. Antes de integrar cambios, explicarlos al autor del paquete común.
 - Todo integrante debe poder explicar el ciclo JADE, el cliente HTTP, la política, la interpretación de resultados y las decisiones tomadas en la defensa.
 
@@ -40,14 +50,24 @@ La práctica utiliza **Java y JADE** para desarrollar agentes que perciben, deci
 
 - **Repositorio compartido:** https://github.com/leemon22/DBApractica2.git
 - Rama predeterminada: `main`.
-- Un integrante clonó el proyecto desde NetBeans y creó una rama de funcionalidad propia para trabajar el termostato. **No está confirmado que los cambios locales de esta sesión se hayan subido a GitHub**; el estado local descrito abajo no debe confundirse con el estado actual de `main`.
+- Flujo de trabajo **[DECISIÓN GRUPO]**: cada cambio se hace en una rama propia, se sube a GitHub y entra en `main` mediante un PR.
+- **Estado del repositorio [VERIFICADO el 09/11/2026 contra GitHub]:**
+
+| PR | Rama → `main` | Contenido | Estado |
+|---|---|---|---|
+| #1 y #2 | `Martin` | Agente del termostato y configuración de JADE | Mergeados |
+| #3 | `limpieza-termostato` | `runStatus` desconocido → `UNKNOWN`, limpieza de cabeceras, README | Mergeado |
+| #4 | `reorganizacion-grid` | Paquete `grid` (solo `package-info.java`), lanzador movido a `lanzadores.LanzadorTermostato`, README dividido en Parte 1 y Parte 2 | Mergeado |
+| (por abrir) | `reorganizacion-grid` | Plan de Grid en este `context.md` (commits `bf0c22b` y `494180c`, ya subidos a GitHub) | **Pendiente de PR** |
+
+  `main` = `8e7a72b` (merge del PR #4). Hasta que se mergee el PR pendiente, **el plan de Grid de este documento solo está en la rama `reorganizacion-grid`**, no en `main`. Las ramas `Martin` y `limpieza-termostato` ya están integradas y pueden borrarse. Ningún integrante ha subido todavía código de Grid. **[VERIFICADO]** GitHub rechaza la contraseña de la cuenta en `git push` por HTTPS: usar `gh auth login` o un token personal (*fine-grained*, permiso *Contents: Read and write*); ese token de GitHub no tiene relación con el de DBA Lab.
 - Proyecto NetBeans basado en **Ant** (`build.xml`, `nbproject/`).
 - JADE detectado en ejecución: **4.6.0**.
 - Equipo utilizado durante estas pruebas: macOS ARM, **Temurin Java 25.0.2**. El proyecto originalmente traía `javac.source=27` y `javac.target=27`, lo que producía `invalid target release: 27`; para ese equipo se cambió a 25 y compiló. **Coordinar la versión Java del equipo antes de integrar cambios en `nbproject/project.properties`.**
 - Gson se añadió localmente para analizar respuestas JSON. El profesor **no impone Gson**; su guía permite elegir el mecanismo de interpretación. Hay que comprobar que el JAR y la referencia del classpath se comparten de forma reproducible.
 - Para JADE se añadió localmente el JAR correspondiente; el README del repositorio pide situarlo en `lib/` y configurar NetBeans.
 
-Estructura arquitectónica propuesta:
+Estructura del repositorio (`main`): un único proyecto NetBeans; cada bloque es un paquete y ambos reutilizan `base`. **[DECISIÓN GRUPO]** No se separa en dos proyectos para no duplicar `base`; el guion valora el código reutilizable entre bloques.
 
 ```text
 DBApractica2/
@@ -60,12 +80,15 @@ DBApractica2/
 │   │   ├── Entorno.java
 │   │   ├── EstadoControl.java
 │   │   └── Politica.java
-│   ├── termostato/                 # Archivos locales implementados en la sesión
+│   ├── termostato/                 # Bloque cerrado, resuelto con SUCCEEDED
 │   │   ├── SensoresTermostato.java
 │   │   ├── AccionTermostato.java
 │   │   ├── PoliticaTermostato.java
 │   │   └── EntornoTermostato.java
-│   └── lanzadores/LanzadorTermostato.java   (antes practica2/pkg1/Practica21.java)
+│   ├── grid/                       # Bloque Grid (por ahora solo package-info.java)
+│   └── lanzadores/
+│       ├── LanzadorTermostato.java # antes practica2/pkg1/Practica21.java; es main.class
+│       └── LanzadorGrid.java       # pendiente
 ├── lib/                           # Dependencias JADE/Gson; revisar tracking
 ├── config.properties              # PRIVADO. Nunca versionar.
 ├── .gitignore
@@ -166,7 +189,9 @@ Secuencia observada del run **382**: `OFF, ON, OFF, ON, OFF, ON, OFF, OFF, ON, O
 5. **Intentos descartados**: `AgentController.join()` (no existe), `AgentState.STATE_DELETED` (constante no válida en el entorno usado), `doPlatformExit()` desde `Agent` (no existe), y `getContainerController().kill()` **dentro de** `Agente.takeDown()` (produjo advertencias `Agent did not terminate` y una excepción durante el cierre).
 6. **Cierre observado como funcional:** restaurar `takeDown()` a solo registro de salida; mantener `runtime.setCloseVM(true)` en el lanzador y gestionar `contenedor.kill()` desde un hilo externo en el lanzador (entonces `Practica21.java`), que espera hasta que `agente.getState()` falle con `ControllerException`. **Advertencia:** es la estrategia probada en esa ejecución, pero la condición basada en que `getState()` falle no es un contrato de finalización documentado aquí; revisar robustez con el compañero responsable de Base y evitar reutilizarla ciegamente en Grid o entornos multiagente. **[POR VALIDAR] Ese hilo de cierre no está en el lanzador de `main` (`Practica21.java`, hoy `lanzadores/LanzadorTermostato.java`) (revisado el 29/10/2026):** solo hay `runtime.setCloseVM(true)`. Comprobar si la plataforma JADE queda abierta al terminar el agente.
 
-## 7. Grid: siguiente bloque (pendiente)
+## 7. Grid: especificación, algoritmo y plan
+
+### 7.1 Entorno
 
 La API anuncia los retos tipo `GRID_2D` con sensores:
 
@@ -179,7 +204,63 @@ Acciones `grid.move.north`, `.east`, `.south`, `.west`; una colisión o salida d
 
 En la respuesta real de `challenges` se observaron IDs `2` a `8` para primera tanda: campo abierto, muro vertical, muro horizontal, muro diagonal, barrera en U, barrera en arco y barrera en C. **Los IDs son un dato observado, no deben codificarse como constantes de selección.** En el momento de la observación no se verificó una segunda tanda publicada.
 
-**Pendiente:** diseñar e implementar Grid sobre `Base`; preservar su interfaz genérica, no añadir supuestos sobre mapa completo ni colisiones recuperables.
+### 7.2 Algoritmo elegido: seguimiento de muros (Bug0 con progreso y elección dinámica de mano)
+
+**[DOCENTE, indicación en clase]** El profesor desaconsejó A* porque el agente solo percibe las celdas vecinas y sugirió el **seguimiento de muro «con ambas manos»**, explicado en `Tema2-Autonomia.pdf` (diapositivas «Bug0 con progreso» y «Elección dinámica de mano»). **[DECISIÓN GRUPO]** Se adopta este algoritmo; se descarta el A* sobre mapa de creencias propuesto inicialmente (el README y `src/grid/package-info.java` todavía lo describen y deben actualizarse).
+
+- **Notación de las diapositivas:** Wall-e = agente; EVA = objetivo (`grid.target`).
+- **Heurística:** distancia Manhattan `h = |x − xEVA| + |y − yEVA|`. Con obstáculos, el recorrido real puede ser mayor.
+- **Desempate fijo:** arriba (N), derecha (E), abajo (S), izquierda (O).
+- **Estado interno:** modo, orientación (dirección del último movimiento), mano elegida, `d0` y contador de decisiones de seguimiento.
+
+| Modo | Comportamiento | Cambio de modo |
+|---|---|---|
+| ACERCAMIENTO | Mover a la primera dirección **libre** (bumper `false`) que **reduce** h. | Ninguna dirección que reduce h está libre: guardar `d0 = h(pos)`, elegir mano, pasar a SEGUIMIENTO. |
+| SEGUIMIENTO | Rodear el obstáculo con la mano elegida. | Se cumple la condición de salida. |
+
+**Elección de mano al chocar:** comparar las dos celdas laterales respecto a la dirección bloqueada; elegir la libre con menor h; en empate, preferencia por defecto (mano derecha en el ejemplo docente). Girar a la izquierda deja el muro a la derecha → **mano derecha**; girar a la derecha → **mano izquierda**. La elección se mantiene durante ese rodeo.
+
+**Giros relativos a la orientación:**
+
+| Orientación | Izquierda | Frente | Derecha | Retroceso |
+|---|---|---|---|---|
+| ↑ N | ← O | ↑ N | → E | ↓ S |
+| → E | ↑ N | → E | ↓ S | ← O |
+| ↓ S | → E | ↓ S | ← O | ↑ N |
+| ← O | ↓ S | ← O | ↑ N | → E |
+
+- Mano izquierda: prioridad izquierda, frente, derecha, retroceso.
+- Mano derecha: prioridad derecha, frente, izquierda, retroceso.
+
+**Condición de salida (Bug0 con progreso):** `h(pos) < d0` **y** el mejor movimiento de acercamiento está libre **y** (variante «pérdida de contacto») el agente ha perdido el contacto lateral con el muro tras **≥ 2 decisiones** de seguimiento. La diapositiva ofrece otra variante («criterio lateral»). **[POR DECIDIR]** Elegir una variante y justificarla en la defensa.
+
+**Riesgos y salvaguardas [DECISIÓN GRUPO, por implementar]:**
+- Bug0 no garantiza llegar en cualquier mapa: puede repetir rodeos. Detectar ciclos (repetición de la tupla posición, orientación, modo, mano) y reaccionar cambiando de mano o pasando a otra estrategia del Tema 2 (p. ej., exploración por fronteras con BFS).
+- El algoritmo no considera la energía: vigilar `remaining` frente a h y registrar el consumo real.
+- Seguridad: no enviar nunca un movimiento hacia una dirección con bumper `true`; las colisiones terminan el run.
+
+### 7.3 Clases previstas
+
+| Clase | Responsabilidad | Responsable |
+|---|---|---|
+| `Posicion` | *Record* `x`, `y` y distancia Manhattan. | Martín |
+| `Direccion` | Enum N/E/S/O con `dx`, `dy`, giros relativos y código de acción. | Martín |
+| `SensoresGrid` | *Record* con posición, objetivo, bumpers y energía. | Martín |
+| `AccionGrid` | Movimiento a enviar (o reutilizar `Direccion`, **[POR DECIDIR]**). | Martín |
+| `EntornoDba` (en `base`) | Lógica común de DBA Lab extraída de `EntornoTermostato`. | Pedro |
+| `EntornoGrid` | Implementa `Entorno<SensoresGrid, AccionGrid>`; lee el objetivo una sola vez. | Pedro |
+| `PoliticaGrid` | Implementa `Politica<SensoresGrid, AccionGrid>` con el algoritmo de 7.2. | Rodrigo |
+| `DetectorCiclos` / control de energía | Salvaguardas de 7.2. | Martín |
+| `SimuladorGrid` | `Entorno` local con los 7 mapas transcritos del guion, para pruebas sin VPN ni runs. | Cristina |
+| `LanzadorGrid` | Punto de entrada del bloque. | Rodrigo (integración) **[POR CONFIRMAR]** |
+
+**Observación de diseño:** `BucleAgentico` llama a `leerSensores()` en cada paso. En Grid, leer los cuatro sensores por movimiento puede desperdiciar energía si las lecturas la consumen; `grid.target` no cambia y basta leerlo al iniciar.
+
+### 7.4 Pendiente de verificar antes de cerrar el diseño
+
+- **[POR VALIDAR]** Si leer sensores consume energía o solo la consumen los movimientos, y cuánto cuesta cada movimiento. Run exploratorio en Campo abierto: leer `grid.energy` dos veces; leer posición, objetivo y bumpers (formato JSON real); un movimiento libre y leer energía; leer posición (confirmar ejes); cerrar el run con `POST /runs/{id}/close`. Registrar los resultados aquí como **[VERIFICADO]**.
+- **[POR VALIDAR]** Si los retos se resuelven una vez por grupo o con el token de cada integrante (preguntar al profesor).
+- **[POR VALIDAR]** La guía `guia-api-grid.md` es un borrador docente; confirmar si hay versión revisada.
 
 ## 8. Antes de un commit / push / merge
 
@@ -204,9 +285,9 @@ Al recibir este archivo, procede así:
 6. **Nunca solicites que el usuario pegue su token**. Si hacen falta pruebas, prepara mecanismos locales que no muestren credenciales y evita incluirlas en logs o documentación.
 7. En asuntos de JADE, evita repetir soluciones descartadas de cierre. Inspecciona la versión de JADE y el código real antes de proponer métodos o constantes.
 8. Recuerda que **Termostato ya tiene ejecuciones `SUCCEEDED` (368 y 382)**; prioriza revisión/integración/defensa antes de generar ejecuciones idénticas sin propósito.
-9. En Grid, diseña la navegación considerando percepción parcial, obstáculos terminales y energía limitada.
+9. En Grid, diseña la navegación considerando percepción parcial, obstáculos terminales y energía limitada. El algoritmo acordado es el seguimiento de muros de la sección 7.2 (indicación del profesor); no propongas sustituirlo por A* u otro planificador sin que el grupo lo decida. Para probar, usa primero el simulador local antes de gastar runs en DBA Lab.
 10. Documenta qué se cambió, por qué, qué resultado produjo y qué queda por revisar para el resto del grupo.
 
 ---
 
-**Resumen de estado al 29/10/2026:** infraestructura `Base` existente; paquete Termostato integrado en `main` y reto superado de forma demostrada (runs 368 y 382); el proyecto compila con JDK 25 desde terminal (`javac`) con `lib/` configurado; defensa del termostato prevista para el 30/10. Pendiente: verificar el cierre de JADE con el lanzador actual (`LanzadorTermostato`), extraer la lógica común de DBA Lab a `base` y comenzar Grid.
+**Resumen de estado al 09/11/2026:** `Base` existente; Termostato integrado en `main`, resuelto (runs 368 y 382) y bloque cerrado; reorganización del repositorio (paquete `grid`, `lanzadores`, README dividido) integrada en `main` (PRs #3 y #4); el plan de Grid de este documento está subido en `reorganizacion-grid`, pendiente de PR. Grid: algoritmo acordado (Bug0 con progreso y elección dinámica de mano, Tema 2) y reparto asignado (sección 2). Siguientes pasos: run exploratorio de energía, `EntornoDba` en `base`, tipos de Grid y simulador local. Entrega el 18/11/2026; defensa de Grid la semana del 16/11/2026.
