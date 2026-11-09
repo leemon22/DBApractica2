@@ -50,15 +50,24 @@ La práctica utiliza **Java y JADE** para desarrollar agentes que perciben, deci
 
 - **Repositorio compartido:** https://github.com/leemon22/DBApractica2.git
 - Rama predeterminada: `main`.
-- Un integrante clonó el proyecto desde NetBeans y creó una rama de funcionalidad propia para trabajar el termostato. **No está confirmado que los cambios locales de esta sesión se hayan subido a GitHub**; el estado local descrito abajo no debe confundirse con el estado actual de `main`.
-- **Ramas a 09/11/2026:** `main` = `0ada2b0` (merge del PR #2). Pendientes de subir: `limpieza-termostato` (runStatus desconocido → `UNKNOWN`, limpieza de cabeceras, README) y, encima, `reorganizacion-grid` (paquete `grid`, lanzador movido a `lanzadores.LanzadorTermostato`, README dividido en Parte 1 y Parte 2). Al subir `reorganizacion-grid` se sube también el commit de limpieza. **[VERIFICADO]** GitHub rechaza la contraseña de la cuenta en `git push` por HTTPS: usar `gh auth login` o un token personal (*fine-grained*, permiso *Contents: Read and write*); ese token de GitHub no tiene relación con el de DBA Lab.
+- Flujo de trabajo **[DECISIÓN GRUPO]**: cada cambio se hace en una rama propia, se sube a GitHub y entra en `main` mediante un PR.
+- **Estado del repositorio [VERIFICADO el 09/11/2026 contra GitHub]:**
+
+| PR | Rama → `main` | Contenido | Estado |
+|---|---|---|---|
+| #1 y #2 | `Martin` | Agente del termostato y configuración de JADE | Mergeados |
+| #3 | `limpieza-termostato` | `runStatus` desconocido → `UNKNOWN`, limpieza de cabeceras, README | Mergeado |
+| #4 | `reorganizacion-grid` | Paquete `grid` (solo `package-info.java`), lanzador movido a `lanzadores.LanzadorTermostato`, README dividido en Parte 1 y Parte 2 | Mergeado |
+| (por abrir) | `reorganizacion-grid` | Plan de Grid en este `context.md` (commits `bf0c22b` y `494180c`, ya subidos a GitHub) | **Pendiente de PR** |
+
+  `main` = `8e7a72b` (merge del PR #4). Hasta que se mergee el PR pendiente, **el plan de Grid de este documento solo está en la rama `reorganizacion-grid`**, no en `main`. Las ramas `Martin` y `limpieza-termostato` ya están integradas y pueden borrarse. Ningún integrante ha subido todavía código de Grid. **[VERIFICADO]** GitHub rechaza la contraseña de la cuenta en `git push` por HTTPS: usar `gh auth login` o un token personal (*fine-grained*, permiso *Contents: Read and write*); ese token de GitHub no tiene relación con el de DBA Lab.
 - Proyecto NetBeans basado en **Ant** (`build.xml`, `nbproject/`).
 - JADE detectado en ejecución: **4.6.0**.
 - Equipo utilizado durante estas pruebas: macOS ARM, **Temurin Java 25.0.2**. El proyecto originalmente traía `javac.source=27` y `javac.target=27`, lo que producía `invalid target release: 27`; para ese equipo se cambió a 25 y compiló. **Coordinar la versión Java del equipo antes de integrar cambios en `nbproject/project.properties`.**
 - Gson se añadió localmente para analizar respuestas JSON. El profesor **no impone Gson**; su guía permite elegir el mecanismo de interpretación. Hay que comprobar que el JAR y la referencia del classpath se comparten de forma reproducible.
 - Para JADE se añadió localmente el JAR correspondiente; el README del repositorio pide situarlo en `lib/` y configurar NetBeans.
 
-Estructura del repositorio (rama `reorganizacion-grid`): un único proyecto NetBeans; cada bloque es un paquete y ambos reutilizan `base`. **[DECISIÓN GRUPO]** No se separa en dos proyectos para no duplicar `base`; el guion valora el código reutilizable entre bloques.
+Estructura del repositorio (`main`): un único proyecto NetBeans; cada bloque es un paquete y ambos reutilizan `base`. **[DECISIÓN GRUPO]** No se separa en dos proyectos para no duplicar `base`; el guion valora el código reutilizable entre bloques.
 
 ```text
 DBApractica2/
@@ -71,7 +80,7 @@ DBApractica2/
 │   │   ├── Entorno.java
 │   │   ├── EstadoControl.java
 │   │   └── Politica.java
-│   ├── termostato/                 # Archivos locales implementados en la sesión
+│   ├── termostato/                 # Bloque cerrado, resuelto con SUCCEEDED
 │   │   ├── SensoresTermostato.java
 │   │   ├── AccionTermostato.java
 │   │   ├── PoliticaTermostato.java
@@ -240,10 +249,10 @@ En la respuesta real de `challenges` se observaron IDs `2` a `8` para primera ta
 | `AccionGrid` | Movimiento a enviar (o reutilizar `Direccion`, **[POR DECIDIR]**). | Martín |
 | `EntornoDba` (en `base`) | Lógica común de DBA Lab extraída de `EntornoTermostato`. | Pedro |
 | `EntornoGrid` | Implementa `Entorno<SensoresGrid, AccionGrid>`; lee el objetivo una sola vez. | Pedro |
-| `PoliticaGrid` | Implementa `Politica<SensoresGrid, AccionGrid>` con el algoritmo de 7.2. | [Nombre por completar] |
+| `PoliticaGrid` | Implementa `Politica<SensoresGrid, AccionGrid>` con el algoritmo de 7.2. | Rodrigo |
 | `DetectorCiclos` / control de energía | Salvaguardas de 7.2. | Martín |
 | `SimuladorGrid` | `Entorno` local con los 7 mapas transcritos del guion, para pruebas sin VPN ni runs. | Cristina |
-| `LanzadorGrid` | Punto de entrada del bloque. | [Nombre por completar] |
+| `LanzadorGrid` | Punto de entrada del bloque. | Rodrigo (integración) **[POR CONFIRMAR]** |
 
 **Observación de diseño:** `BucleAgentico` llama a `leerSensores()` en cada paso. En Grid, leer los cuatro sensores por movimiento puede desperdiciar energía si las lecturas la consumen; `grid.target` no cambia y basta leerlo al iniciar.
 
@@ -281,4 +290,4 @@ Al recibir este archivo, procede así:
 
 ---
 
-**Resumen de estado al 09/11/2026:** `Base` existente; Termostato integrado en `main`, resuelto (runs 368 y 382) y bloque cerrado; reorganización del repositorio (paquete `grid`, `lanzadores`, README dividido) lista en ramas locales pendientes de subir. Grid: algoritmo acordado (Bug0 con progreso y elección dinámica de mano, Tema 2) y reparto asignado (sección 2). Siguientes pasos: run exploratorio de energía, `EntornoDba` en `base`, tipos de Grid y simulador local. Entrega el 18/11/2026; defensa de Grid la semana del 16/11/2026.
+**Resumen de estado al 09/11/2026:** `Base` existente; Termostato integrado en `main`, resuelto (runs 368 y 382) y bloque cerrado; reorganización del repositorio (paquete `grid`, `lanzadores`, README dividido) integrada en `main` (PRs #3 y #4); el plan de Grid de este documento está subido en `reorganizacion-grid`, pendiente de PR. Grid: algoritmo acordado (Bug0 con progreso y elección dinámica de mano, Tema 2) y reparto asignado (sección 2). Siguientes pasos: run exploratorio de energía, `EntornoDba` en `base`, tipos de Grid y simulador local. Entrega el 18/11/2026; defensa de Grid la semana del 16/11/2026.
