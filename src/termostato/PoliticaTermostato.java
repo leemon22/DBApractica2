@@ -1,12 +1,9 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package termostato;
 
 import base.Politica;
 
 /**
+ * Política del termostato: decide encender o apagar la refrigeración según la temperatura.
  *
  * @author martinhernandezruiz
  */

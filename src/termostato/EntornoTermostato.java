@@ -1,7 +1,3 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
- */
 package termostato;
 import base.Configuracion;
 import base.Entorno;
@@ -14,6 +10,7 @@ import com.google.gson.JsonElement;
 import java.net.http.HttpResponse;
 
 /**
+ * Entorno del termostato: descubre el reto, inicia el run, lee sensores y envía acciones a DBA Lab.
  *
  * @author martinhernandezruiz
  */
@@ -94,9 +91,21 @@ public class EntornoTermostato implements Entorno<SensoresTermostato, AccionTerm
 
         estadoActual = new EstadoControl(
                 identificador,
-                EstadoControl.RunStatus.valueOf(estado),
+                convertirEstado(estado),
                 motivo
         );
+    }
+
+    // Traduce el runStatus de la API. Si el servidor devuelve un valor que no
+    // conocemos, se usa UNKNOWN en lugar de lanzar una excepcion; como UNKNOWN
+    // no es ACTIVE, el bucle del agente se detiene.
+    private EstadoControl.RunStatus convertirEstado(String estado) {
+        try {
+            return EstadoControl.RunStatus.valueOf(estado);
+        } catch (IllegalArgumentException e) {
+            System.err.println("runStatus desconocido recibido: " + estado);
+            return EstadoControl.RunStatus.UNKNOWN;
+        }
     }
 
 
