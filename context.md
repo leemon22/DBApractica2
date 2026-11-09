@@ -37,7 +37,7 @@ La práctica utiliza **Java y JADE** para desarrollar agentes que perciben, deci
 
 | Integrante | Responsabilidad | Tareas |
 |---|---|---|
-| **[Nombre por completar]** (coordinación, algo más de carga) | Algoritmo de navegación e integración | `PoliticaGrid` con Bug0 con progreso y elección dinámica de mano (sección 7); integración final; estrategia para la segunda tanda. |
+| **Rodrigo** (Coordinación, algo más de carga) | Algoritmo de navegación e integración | `PoliticaGrid` con Bug0 con progreso y elección dinámica de mano (sección 7); integración final; estrategia para la segunda tanda. |
 | **Pedro** | Comunicación con DBA Lab | Run exploratorio para medir el consumo de energía; extraer la lógica común de `EntornoTermostato` a `base.EntornoDba` y comprobar que el termostato sigue dando `SUCCEEDED`; implementar `EntornoGrid`. |
 | **Martín** | Tipos, orientación y salvaguardas | `Posicion`, `SensoresGrid`, `AccionGrid` y enum `Direccion` con giros relativos (`izquierda()`, `derecha()`, `retroceso()`, `dx`, `dy`); detección de ciclos; control de energía. |
 | **Cristina** | Simulador, pruebas y vídeo | Simulador local (`Entorno` falso) con los 7 mapas del guion; trazas paso a paso; tabla de resultados por reto; guion del vídeo. |
