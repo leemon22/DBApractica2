@@ -1,4 +1,4 @@
-package practica2.pkg1;
+package lanzadores;
 
 import jade.core.Profile;
 import jade.core.ProfileImpl;
@@ -10,11 +10,13 @@ import termostato.EntornoTermostato;
 import termostato.PoliticaTermostato;
 
 /**
- * Punto de entrada: arranca JADE y lanza el agente del termostato.
+ * Punto de entrada del bloque Termostato: arranca JADE y crea el agente
+ * base.Agente con EntornoTermostato y PoliticaTermostato.
+ * (Antes practica2.pkg1.Practica21.)
  *
  * @author pj
  */
-public class Practica21 {
+public class LanzadorTermostato {
 
     public static void main(String[] args) {
         try {
