@@ -215,30 +215,39 @@ La respuesta a una acción no incluye la posición ni la energía nuevas; hay qu
 
 Los retos se seleccionan por `environmentType` (`GRID_2D`) y capacidades anunciadas, nunca por un ID fijo.
 
-### Diseño previsto
+### Diseño
 
-Navegación con **A\* sobre un mapa de creencias que se replanifica**: las celdas desconocidas se suponen libres; cuando los *bumpers* revelan un obstáculo, se marca en el mapa y se recalcula la ruta. Antes de cada movimiento se comprueba que la celda de destino no está bloqueada. Esto resuelve los mapas con mínimos locales (barreras en U y en C), donde avanzar en línea recta hacia el objetivo deja al agente atascado.
+Navegación por **seguimiento de muros: Bug0 con progreso y elección dinámica de mano** (Tema 2, indicación del profesor). El agente solo percibe sus cuatro vecinas, así que no planifica sobre un mapa: avanza hacia el objetivo mientras puede y rodea los obstáculos cuando no.
 
-| Clase | Responsabilidad | Responsable |
-|---|---|---|
-| `SensoresGrid` | *Record* con posición, objetivo, *bumpers* y energía. | _por asignar_ |
-| `AccionGrid` | *Enum* con los cuatro códigos `grid.move.*` y su desplazamiento (dx, dy). | _por asignar_ |
-| `EntornoGrid` | Implementa `Entorno<SensoresGrid, AccionGrid>` sobre `ClienteHttpDba`. | _por asignar_ |
-| `MapaCreencias` | Obstáculos detectados, celdas visitadas y límites conocidos. | _por asignar_ |
-| `PlanificadorAEstrella` | Ruta más corta sobre el mapa de creencias. | _por asignar_ |
-| `PoliticaGrid` | Implementa `Politica<SensoresGrid, AccionGrid>`: actualiza el mapa, replanifica, aplica la comprobación de seguridad y controla la energía. | _por asignar_ |
-| `LanzadorGrid` | Punto de entrada del bloque. | _por asignar_ |
+- **ACERCAMIENTO:** se mueve a la primera dirección libre que reduce la distancia Manhattan al objetivo, con desempate N, E, S, O.
+- **SEGUIMIENTO:** si ninguna dirección que acerca está libre, guarda la distancia `d0`, elige mano (la celda lateral libre más cercana al objetivo) y rodea el obstáculo hasta estar más cerca que `d0` con el camino hacia el objetivo libre.
+- **Seguridad:** nunca se envía un movimiento hacia una dirección con *bumper* a `true`.
+
+El detalle (giros relativos, condición de salida, salvaguardas contra ciclos y energía) está en la sección 7 de `context.md`.
+
+| Clase | Responsabilidad | Responsable | Estado |
+|---|---|---|---|
+| `Direccion` | *Enum* N/E/S/O: desplazamiento (dx, dy), giros relativos, código de acción y campo del *bumper*. Es también la acción del agente. | Rodrigo / Martín | Hecho |
+| `Posicion` | *Record* (x, y) con distancia Manhattan y movimiento a la vecina. | Rodrigo / Martín | Hecho |
+| `SensoresGrid` | *Record* con posición, objetivo, direcciones bloqueadas y energía. | Rodrigo / Martín | Hecho |
+| `EntornoDba` (en `base`) | Lógica común de DBA Lab extraída de `EntornoTermostato`. | Pedro | Pendiente |
+| `EntornoGrid` | Implementa `Entorno<SensoresGrid, Direccion>` sobre DBA Lab. | Pedro | Pendiente |
+| `PoliticaGrid` | Implementa `Politica<SensoresGrid, Direccion>` con la máquina de estados ACERCAMIENTO / SEGUIMIENTO. | Rodrigo | Pendiente |
+| Detección de ciclos y control de energía | Salvaguardas de la política. | Martín | Pendiente |
+| `SimuladorGrid` | `Entorno` local con los 7 mapas del guion, para probar sin VPN ni runs. | Cristina | Pendiente |
+| `LanzadorGrid` | Punto de entrada del bloque. | Rodrigo | Pendiente |
 
 ```mermaid
 classDiagram
     EntornoGrid ..|> Entorno : implementa
+    SimuladorGrid ..|> Entorno : implementa
     PoliticaGrid ..|> Politica : implementa
     EntornoGrid --> ClienteHttpDba : usa
     EntornoGrid ..> SensoresGrid : crea
-    PoliticaGrid --> MapaCreencias : actualiza
-    PoliticaGrid --> PlanificadorAEstrella : consulta
-    PlanificadorAEstrella ..> MapaCreencias : lee
-    PoliticaGrid ..> AccionGrid : decide
+    SimuladorGrid ..> SensoresGrid : crea
+    SensoresGrid --> Posicion : contiene
+    PoliticaGrid ..> SensoresGrid : lee
+    PoliticaGrid ..> Direccion : decide
 ```
 
 ### Pendiente de confirmar con el profesor
@@ -268,8 +277,9 @@ classDiagram
 - [x] Termostato: reto resuelto (runs 368 y 382) y defendido
 - [ ] Extraer a `base` la lógica común de DBA Lab que hoy está en `EntornoTermostato` (descubrimiento, validación de capacidades, lectura de `control`, sensores y acciones)
 - [ ] Comprobar si JADE se cierra al terminar el agente (el lanzador solo usa `setCloseVM(true)`)
-- [ ] Grid: `SensoresGrid`, `AccionGrid` y `EntornoGrid`
-- [ ] Grid: `MapaCreencias` y `PlanificadorAEstrella`
+- [x] Grid: `Direccion`, `Posicion` y `SensoresGrid`
+- [ ] Grid: `EntornoDba` en `base` y `EntornoGrid`
+- [ ] Grid: `SimuladorGrid` con los mapas de la primera tanda
 - [ ] Grid: `PoliticaGrid` y `LanzadorGrid`
 - [ ] Grid: primera tanda resuelta
 - [ ] Grid: segunda tanda resuelta

@@ -2,7 +2,7 @@
 # DBA · Práctica 2 — Contexto compartido y guía de continuidad
 
 **Asignatura:** Diseño Basado en Agentes (UGR) · Curso 2026/2027  
-**Última actualización del contexto:** 09/11/2026  
+**Última actualización del contexto:** 10/11/2026  
 **Uso previsto:** incorporar este documento al repositorio y proporcionarlo como contexto a los asistentes de IA de los cuatro integrantes. **No sustituye los guiones oficiales ni el código fuente.**
 
 > **Regla de trabajo para cualquier asistente:** distinguir entre **requisito del profesor**, **decisión del grupo**, **hecho verificado** y **pendiente de verificar**. Nunca tratar una compilación como prueba de funcionamiento, ni una ejecución correcta como validación definitiva del diseño. Revisar primero la versión más reciente de la rama correspondiente y los documentos docentes antes de proponer cambios.
@@ -39,7 +39,7 @@ La práctica utiliza **Java y JADE** para desarrollar agentes que perciben, deci
 |---|---|---|
 | **Rodrigo** (Coordinación, algo más de carga) | Algoritmo de navegación e integración | `PoliticaGrid` con Bug0 con progreso y elección dinámica de mano (sección 7); integración final; estrategia para la segunda tanda. |
 | **Pedro** | Comunicación con DBA Lab | Run exploratorio para medir el consumo de energía; extraer la lógica común de `EntornoTermostato` a `base.EntornoDba` y comprobar que el termostato sigue dando `SUCCEEDED`; implementar `EntornoGrid`. |
-| **Martín** | Tipos, orientación y salvaguardas | `Posicion`, `SensoresGrid`, `AccionGrid` y enum `Direccion` con giros relativos (`izquierda()`, `derecha()`, `retroceso()`, `dx`, `dy`); detección de ciclos; control de energía. |
+| **Martín** | Tipos, orientación y salvaguardas | ~~`Posicion`, `SensoresGrid`, `AccionGrid` y enum `Direccion`~~ (los implementó Rodrigo el 10/11, ver 7.3); detección de ciclos; control de energía. |
 | **Cristina** | Simulador, pruebas y vídeo | Simulador local (`Entorno` falso) con los 7 mapas del guion; trazas paso a paso; tabla de resultados por reto; guion del vídeo. |
 
 - Hitos propuestos: **10/11** run exploratorio hecho y `EntornoDba` integrado; **11/11** tipos de Grid y simulador funcionando; **12/11** política resolviendo los 7 mapas en el simulador y después en DBA Lab; **13/11–16/11** segunda tanda; **17/11** código congelado y revisión cruzada (cada integrante explica un módulo ajeno); **18/11** entrega.
@@ -58,9 +58,9 @@ La práctica utiliza **Java y JADE** para desarrollar agentes que perciben, deci
 | #1 y #2 | `Martin` | Agente del termostato y configuración de JADE | Mergeados |
 | #3 | `limpieza-termostato` | `runStatus` desconocido → `UNKNOWN`, limpieza de cabeceras, README | Mergeado |
 | #4 | `reorganizacion-grid` | Paquete `grid` (solo `package-info.java`), lanzador movido a `lanzadores.LanzadorTermostato`, README dividido en Parte 1 y Parte 2 | Mergeado |
-| (por abrir) | `reorganizacion-grid` | Plan de Grid en este `context.md` (commits `bf0c22b` y `494180c`, ya subidos a GitHub) | **Pendiente de PR** |
+| #5 | `reorganizacion-grid` | Plan de Grid en este `context.md` y estado real del repositorio (commits `bf0c22b`, `494180c` y `2c68caf`) | Mergeado |
 
-  `main` = `8e7a72b` (merge del PR #4). Hasta que se mergee el PR pendiente, **el plan de Grid de este documento solo está en la rama `reorganizacion-grid`**, no en `main`. Las ramas `Martin` y `limpieza-termostato` ya están integradas y pueden borrarse. Ningún integrante ha subido todavía código de Grid. **[VERIFICADO]** GitHub rechaza la contraseña de la cuenta en `git push` por HTTPS: usar `gh auth login` o un token personal (*fine-grained*, permiso *Contents: Read and write*); ese token de GitHub no tiene relación con el de DBA Lab.
+  `main` = `2898d80` (merge del PR #5). Las ramas `Martin`, `limpieza-termostato` y `reorganizacion-grid` ya están integradas y pueden borrarse. El trabajo de `PoliticaGrid` se hace en la rama `politica-grid` (Rodrigo). Ningún integrante ha subido todavía código de Grid. **[VERIFICADO]** GitHub rechaza la contraseña de la cuenta en `git push` por HTTPS: usar `gh auth login` o un token personal (*fine-grained*, permiso *Contents: Read and write*); ese token de GitHub no tiene relación con el de DBA Lab.
 - Proyecto NetBeans basado en **Ant** (`build.xml`, `nbproject/`).
 - JADE detectado en ejecución: **4.6.0**.
 - Equipo utilizado durante estas pruebas: macOS ARM, **Temurin Java 25.0.2**. El proyecto originalmente traía `javac.source=27` y `javac.target=27`, lo que producía `invalid target release: 27`; para ese equipo se cambió a 25 y compiló. **Coordinar la versión Java del equipo antes de integrar cambios en `nbproject/project.properties`.**
@@ -206,7 +206,7 @@ En la respuesta real de `challenges` se observaron IDs `2` a `8` para primera ta
 
 ### 7.2 Algoritmo elegido: seguimiento de muros (Bug0 con progreso y elección dinámica de mano)
 
-**[DOCENTE, indicación en clase]** El profesor desaconsejó A* porque el agente solo percibe las celdas vecinas y sugirió el **seguimiento de muro «con ambas manos»**, explicado en `Tema2-Autonomia.pdf` (diapositivas «Bug0 con progreso» y «Elección dinámica de mano»). **[DECISIÓN GRUPO]** Se adopta este algoritmo; se descarta el A* sobre mapa de creencias propuesto inicialmente (el README y `src/grid/package-info.java` todavía lo describen y deben actualizarse).
+**[DOCENTE, indicación en clase]** El profesor desaconsejó A* porque el agente solo percibe las celdas vecinas y sugirió el **seguimiento de muro «con ambas manos»**, explicado en `Tema2-Autonomia.pdf` (diapositivas «Bug0 con progreso» y «Elección dinámica de mano»). **[DECISIÓN GRUPO]** Se adopta este algoritmo; se descarta el A* sobre mapa de creencias propuesto inicialmente. El README y `src/grid/package-info.java` ya describen el algoritmo nuevo (10/11/2026).
 
 - **Notación de las diapositivas:** Wall-e = agente; EVA = objetivo (`grid.target`).
 - **Heurística:** distancia Manhattan `h = |x − xEVA| + |y − yEVA|`. Con obstáculos, el recorrido real puede ser mayor.
@@ -243,13 +243,13 @@ En la respuesta real de `challenges` se observaron IDs `2` a `8` para primera ta
 
 | Clase | Responsabilidad | Responsable |
 |---|---|---|
-| `Posicion` | *Record* `x`, `y` y distancia Manhattan. | Martín |
-| `Direccion` | Enum N/E/S/O con `dx`, `dy`, giros relativos y código de acción. | Martín |
-| `SensoresGrid` | *Record* con posición, objetivo, bumpers y energía. | Martín |
-| `AccionGrid` | Movimiento a enviar (o reutilizar `Direccion`, **[POR DECIDIR]**). | Martín |
+| `Posicion` | *Record* `x`, `y`; `distanciaManhattan(otra)` y `mover(direccion)`. **Hecho.** | Rodrigo |
+| `Direccion` | Enum `NORTE`, `ESTE`, `SUR`, `OESTE` (en ese orden: sentido horario y desempate del Tema 2) con `dx()`, `dy()` (norte = `dy -1`), `izquierda()`, `derecha()`, `retroceso()`, `codigoAccion()` (`grid.move.*`) y `campoBumper()` (`north`…). **Hecho.** | Rodrigo |
+| `SensoresGrid` | *Record* `posicion`, `objetivo`, `Set<Direccion> bloqueadas` (bumpers a `true`, copia inmutable), `modoEnergia`, `energiaRestante`; `bloqueado(d)`, `libre(d)`, `distanciaAlObjetivo()`, `enObjetivo()`. **Hecho.** | Rodrigo |
+| ~~`AccionGrid`~~ | **[DECISIÓN GRUPO, 10/11]** No se crea: la acción es la propia `Direccion` (un movimiento *es* una dirección y ya conoce su código). | — |
 | `EntornoDba` (en `base`) | Lógica común de DBA Lab extraída de `EntornoTermostato`. | Pedro |
-| `EntornoGrid` | Implementa `Entorno<SensoresGrid, AccionGrid>`; lee el objetivo una sola vez. | Pedro |
-| `PoliticaGrid` | Implementa `Politica<SensoresGrid, AccionGrid>` con el algoritmo de 7.2. | Rodrigo |
+| `EntornoGrid` | Implementa `Entorno<SensoresGrid, Direccion>`; lee el objetivo una sola vez. Para los bumpers puede recorrer `Direccion.values()` y leer `campoBumper()`. | Pedro |
+| `PoliticaGrid` | Implementa `Politica<SensoresGrid, Direccion>` con el algoritmo de 7.2. | Rodrigo |
 | `DetectorCiclos` / control de energía | Salvaguardas de 7.2. | Martín |
 | `SimuladorGrid` | `Entorno` local con los 7 mapas transcritos del guion, para pruebas sin VPN ni runs. | Cristina |
 | `LanzadorGrid` | Punto de entrada del bloque. | Rodrigo (integración) **[POR CONFIRMAR]** |
@@ -290,4 +290,4 @@ Al recibir este archivo, procede así:
 
 ---
 
-**Resumen de estado al 09/11/2026:** `Base` existente; Termostato integrado en `main`, resuelto (runs 368 y 382) y bloque cerrado; reorganización del repositorio (paquete `grid`, `lanzadores`, README dividido) integrada en `main` (PRs #3 y #4); el plan de Grid de este documento está subido en `reorganizacion-grid`, pendiente de PR. Grid: algoritmo acordado (Bug0 con progreso y elección dinámica de mano, Tema 2) y reparto asignado (sección 2). Siguientes pasos: run exploratorio de energía, `EntornoDba` en `base`, tipos de Grid y simulador local. Entrega el 18/11/2026; defensa de Grid la semana del 16/11/2026.
+**Resumen de estado al 10/11/2026:** `Base` existente; Termostato integrado en `main`, resuelto (runs 368 y 382) y bloque cerrado; reorganización del repositorio (paquete `grid`, `lanzadores`, README dividido) integrada en `main` (PRs #3 y #4); el plan de Grid de este documento, integrado en `main` (PR #5). Grid: algoritmo acordado (Bug0 con progreso y elección dinámica de mano, Tema 2) y reparto asignado (sección 2). Tipos de Grid (`Direccion`, `Posicion`, `SensoresGrid`) hechos en la rama `politica-grid` (10/11), compilan y pasan una prueba local de giros, desplazamientos y Manhattan. Siguientes pasos: `PoliticaGrid`, run exploratorio de energía, `EntornoDba` en `base` y simulador local. Entrega el 18/11/2026; defensa de Grid la semana del 16/11/2026.
