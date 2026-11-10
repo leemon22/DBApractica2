@@ -232,7 +232,27 @@ En la respuesta real de `challenges` se observaron IDs `2` a `8` para primera ta
 - Mano izquierda: prioridad izquierda, frente, derecha, retroceso.
 - Mano derecha: prioridad derecha, frente, izquierda, retroceso.
 
-**Condición de salida (Bug0 con progreso):** `h(pos) < d0` **y** el mejor movimiento de acercamiento está libre **y** (variante «pérdida de contacto») el agente ha perdido el contacto lateral con el muro tras **≥ 2 decisiones** de seguimiento. La diapositiva ofrece otra variante («criterio lateral»). **[POR DECIDIR]** Elegir una variante y justificarla en la defensa.
+**Condición de salida (Bug0 con progreso) [DECISIÓN GRUPO, 10/11/2026]: variante «criterio lateral».** Se abandona el SEGUIMIENTO cuando se cumplen las tres condiciones:
+
+1. `h(pos) < d0` (progreso respecto al inicio del rodeo).
+2. El mejor movimiento de acercamiento (el primero en orden N, E, S, O que reduce h) está libre.
+3. El objetivo queda en el **lado libre**, el contrario al muro: con mano derecha, `orientacion.izquierda()`; con mano izquierda, `orientacion.derecha()`. Se comprueba con el producto escalar `(objetivo − posición) · lado > 0`.
+
+**[POR VALIDAR]** La diapositiva solo dice «el objetivo cumple el criterio lateral de la variante»; la condición 3 es la interpretación del grupo. Confirmar con el profesor si se explicó de otra forma.
+
+**Justificación.** Se simularon las tres variantes (Bug0 básico, pérdida de contacto, criterio lateral) en los 7 mapas del guion, transcritos de sus imágenes, con **todas** las combinaciones de inicio y objetivo sobre celdas libres (~9.000 por mapa). Ninguna variante choca nunca; los fallos son ciclos. Porcentaje de casos resueltos:
+
+| Mapa | Básico | Pérdida de contacto | Criterio lateral |
+|---|---|---|---|
+| Campo abierto | 100 % | 100 % | 100 % |
+| Muro vertical | 81 % | 86 % | 100 % |
+| Muro horizontal | 99 % | 96 % | 100 % |
+| Muro diagonal | 64 % | 100 % | 100 % |
+| Barrera en U | 86 % | 97 % | 100 % |
+| Barrera en arco | 72 % | 92 % | 100 % |
+| Barrera en C | 84 % | 96 % | 100 % |
+
+Con el criterio lateral, el recorrido supera a la distancia Manhattan en 0,5–7 pasos de media según el mapa, y en 52 como máximo (muro diagonal). La pérdida de contacto falla porque los límites del mapa también cuentan como muro: por ejemplo, en el muro vertical con inicio (0,2) y objetivo (6,3), el agente rodea el muro, en (5,2) ya podría salir, pero sigue en contacto y recorre el perímetro en bucle. **[VERIFICADO en simulación, no en DBA Lab]**: los inicios y objetivos reales de cada reto aún no se conocen, aunque quedan cubiertos al probar todas las combinaciones.
 
 **Riesgos y salvaguardas [DECISIÓN GRUPO, por implementar]:**
 - Bug0 no garantiza llegar en cualquier mapa: puede repetir rodeos. Detectar ciclos (repetición de la tupla posición, orientación, modo, mano) y reaccionar cambiando de mano o pasando a otra estrategia del Tema 2 (p. ej., exploración por fronteras con BFS).
@@ -249,7 +269,7 @@ En la respuesta real de `challenges` se observaron IDs `2` a `8` para primera ta
 | ~~`AccionGrid`~~ | **[DECISIÓN GRUPO, 10/11]** No se crea: la acción es la propia `Direccion` (un movimiento *es* una dirección y ya conoce su código). | — |
 | `EntornoDba` (en `base`) | Lógica común de DBA Lab extraída de `EntornoTermostato`. | Pedro |
 | `EntornoGrid` | Implementa `Entorno<SensoresGrid, Direccion>`; lee el objetivo una sola vez. Para los bumpers puede recorrer `Direccion.values()` y leer `campoBumper()`. | Pedro |
-| `PoliticaGrid` | Implementa `Politica<SensoresGrid, Direccion>` con el algoritmo de 7.2. | Rodrigo |
+| `PoliticaGrid` | Implementa `Politica<SensoresGrid, Direccion>` con el algoritmo de 7.2 y la salida por criterio lateral. **Hecho (10/11).** Una instancia por run, porque guarda estado. Probada con un banco local en los 7 mapas y todas las combinaciones de inicio y objetivo (59.462 casos): todos llegan, sin choques, con los mismos recorridos que el modelo en Python. No incluye detección de ciclos ni control de energía (Martín). | Rodrigo |
 | `DetectorCiclos` / control de energía | Salvaguardas de 7.2. | Martín |
 | `SimuladorGrid` | `Entorno` local con los 7 mapas transcritos del guion, para pruebas sin VPN ni runs. | Cristina |
 | `LanzadorGrid` | Punto de entrada del bloque. | Rodrigo (integración) **[POR CONFIRMAR]** |
@@ -290,4 +310,4 @@ Al recibir este archivo, procede así:
 
 ---
 
-**Resumen de estado al 10/11/2026:** `Base` existente; Termostato integrado en `main`, resuelto (runs 368 y 382) y bloque cerrado; reorganización del repositorio (paquete `grid`, `lanzadores`, README dividido) integrada en `main` (PRs #3 y #4); el plan de Grid de este documento, integrado en `main` (PR #5). Grid: algoritmo acordado (Bug0 con progreso y elección dinámica de mano, Tema 2) y reparto asignado (sección 2). Tipos de Grid (`Direccion`, `Posicion`, `SensoresGrid`) hechos en la rama `politica-grid` (10/11), compilan y pasan una prueba local de giros, desplazamientos y Manhattan. Siguientes pasos: `PoliticaGrid`, run exploratorio de energía, `EntornoDba` en `base` y simulador local. Entrega el 18/11/2026; defensa de Grid la semana del 16/11/2026.
+**Resumen de estado al 10/11/2026:** `Base` existente; Termostato integrado en `main`, resuelto (runs 368 y 382) y bloque cerrado; reorganización del repositorio (paquete `grid`, `lanzadores`, README dividido) integrada en `main` (PRs #3 y #4); el plan de Grid de este documento, integrado en `main` (PR #5). Grid: algoritmo acordado (Bug0 con progreso y elección dinámica de mano, Tema 2) y reparto asignado (sección 2). Tipos de Grid (`Direccion`, `Posicion`, `SensoresGrid`) hechos en la rama `politica-grid` (10/11), compilan y pasan una prueba local de giros, desplazamientos y Manhattan. Condición de salida decidida: criterio lateral (7.2). `PoliticaGrid` hecha y probada en simulación. Siguientes pasos: run exploratorio de energía, `EntornoDba` en `base` y simulador local. Entrega el 18/11/2026; defensa de Grid la semana del 16/11/2026.

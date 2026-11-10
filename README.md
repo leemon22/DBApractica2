@@ -220,7 +220,7 @@ Los retos se seleccionan por `environmentType` (`GRID_2D`) y capacidades anuncia
 Navegación por **seguimiento de muros: Bug0 con progreso y elección dinámica de mano** (Tema 2, indicación del profesor). El agente solo percibe sus cuatro vecinas, así que no planifica sobre un mapa: avanza hacia el objetivo mientras puede y rodea los obstáculos cuando no.
 
 - **ACERCAMIENTO:** se mueve a la primera dirección libre que reduce la distancia Manhattan al objetivo, con desempate N, E, S, O.
-- **SEGUIMIENTO:** si ninguna dirección que acerca está libre, guarda la distancia `d0`, elige mano (la celda lateral libre más cercana al objetivo) y rodea el obstáculo hasta estar más cerca que `d0` con el camino hacia el objetivo libre.
+- **SEGUIMIENTO:** si ninguna dirección que acerca está libre, guarda la distancia `d0`, elige mano (la celda lateral libre más cercana al objetivo) y rodea el obstáculo hasta que está más cerca que `d0`, el camino hacia el objetivo está libre y el objetivo queda en el lado libre, el contrario al muro (*criterio lateral*).
 - **Seguridad:** nunca se envía un movimiento hacia una dirección con *bumper* a `true`.
 
 El detalle (giros relativos, condición de salida, salvaguardas contra ciclos y energía) está en la sección 7 de `context.md`.
@@ -232,7 +232,7 @@ El detalle (giros relativos, condición de salida, salvaguardas contra ciclos y 
 | `SensoresGrid` | *Record* con posición, objetivo, direcciones bloqueadas y energía. | Rodrigo / Martín | Hecho |
 | `EntornoDba` (en `base`) | Lógica común de DBA Lab extraída de `EntornoTermostato`. | Pedro | Pendiente |
 | `EntornoGrid` | Implementa `Entorno<SensoresGrid, Direccion>` sobre DBA Lab. | Pedro | Pendiente |
-| `PoliticaGrid` | Implementa `Politica<SensoresGrid, Direccion>` con la máquina de estados ACERCAMIENTO / SEGUIMIENTO. | Rodrigo | Pendiente |
+| `PoliticaGrid` | Implementa `Politica<SensoresGrid, Direccion>` con la máquina de estados ACERCAMIENTO / SEGUIMIENTO y salida por criterio lateral. | Rodrigo | Hecho (probada en simulación) |
 | Detección de ciclos y control de energía | Salvaguardas de la política. | Martín | Pendiente |
 | `SimuladorGrid` | `Entorno` local con los 7 mapas del guion, para probar sin VPN ni runs. | Cristina | Pendiente |
 | `LanzadorGrid` | Punto de entrada del bloque. | Rodrigo | Pendiente |
