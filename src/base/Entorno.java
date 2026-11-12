@@ -43,4 +43,12 @@ public interface Entorno<S extends Sensor, A extends Accion> {
      * @return estado de control actual
      */
     EstadoControl getEstadoActual();
+
+    /**
+     * Cierra el run activo en DBA Lab (pasa a INTERRUPTED), liberando la sesión del estudiante.
+     *
+     * @throws IOException          si ocurre un error de comunicación
+     * @throws InterruptedException si se interrumpe la comunicación
+     */
+    void cerrarRun() throws IOException, InterruptedException;
 }

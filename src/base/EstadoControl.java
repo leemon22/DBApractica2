@@ -36,6 +36,9 @@ public record EstadoControl(String runId, RunStatus runStatus, String reasonCode
      * se asigna UNKNOWN para detener el bucle con seguridad.
      */
     public static RunStatus parsearEstado(String estado) {
+        if (estado == null) {
+            return RunStatus.UNKNOWN;
+        }
         try {
             return RunStatus.valueOf(estado);
         } catch (IllegalArgumentException e) {

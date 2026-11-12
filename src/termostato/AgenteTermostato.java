@@ -1,6 +1,7 @@
 package termostato;
 
 import base.Agente;
+import base.ComponentesAgente;
 
 /**
  * Agente JADE específico para el control del termostato.
@@ -8,9 +9,11 @@ import base.Agente;
 public class AgenteTermostato extends Agente<SensoresTermostato, AccionTermostato> {
 
     @Override
-    protected void iniciar() {
-        this.entorno = new EntornoTermostato();
+    protected ComponentesAgente<SensoresTermostato, AccionTermostato> iniciar() {
+        EntornoTermostato entorno = new EntornoTermostato();
         PoliticaTermostato politica = new PoliticaTermostato();
-        this.bucle = new BucleAgenticoTermostato(this, this.entorno, politica);
+        BucleAgenticoTermostato bucle = new BucleAgenticoTermostato(this, entorno, politica);
+
+        return new ComponentesAgente<>(entorno, bucle);
     }
 }

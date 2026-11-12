@@ -17,6 +17,11 @@ public class EntornoTermostato implements Entorno<SensoresTermostato, AccionTerm
     private EstadoControl estadoActual;
     private String runId;
 
+    // Parámetros invariantes del reto (se leen una sola vez al inicio para optimizar la red)
+    private double limiteInferior;
+    private double limiteSuperior;
+    private double temperaturaObjetivo;
+
     // --- Constructores ---
 
     /**
@@ -88,14 +93,6 @@ public class EntornoTermostato implements Entorno<SensoresTermostato, AccionTerm
     private JsonObject consultarSensor(String sensorId) throws IOException, InterruptedException {
         JsonObject respuesta = cliente.enviarPercepcion(runId, sensorId);
         estadoActual = new EstadoControl(respuesta.getAsJsonObject("control"));
-
-        if (!estadoActual.isActivo()) {
-            throw new IllegalStateException(
-                "Run finalizado: " + estadoActual.runStatus()
-                + " | Motivo: " + estadoActual.reasonCode()
-            );
-        }
-
         return respuesta.getAsJsonObject("value");
     }
 
@@ -125,6 +122,13 @@ public class EntornoTermostato implements Entorno<SensoresTermostato, AccionTerm
                 System.out.println("Run iniciado: " + runId);
                 System.out.println("Estado: " + estadoActual.runStatus());
 
+                // Leemos los parámetros invariantes del reto una sola vez al arrancar
+                JsonObject limites = consultarSensor("thermostat.limits");
+                JsonObject objetivo = consultarSensor("thermostat.target");
+                this.limiteInferior = limites.get("lower").getAsDouble();
+                this.limiteSuperior = limites.get("upper").getAsDouble();
+                this.temperaturaObjetivo = objetivo.get("celsius").getAsDouble();
+
                 encontrado = true;
                 break;
             }
@@ -138,10 +142,14 @@ public class EntornoTermostato implements Entorno<SensoresTermostato, AccionTerm
     @Override
     public SensoresTermostato leerSensores() throws IOException, InterruptedException {
         JsonObject temperatura = consultarSensor("thermostat.temperature");
-        JsonObject limites = consultarSensor("thermostat.limits");
-        JsonObject objetivo = consultarSensor("thermostat.target");
+        double tempActual = temperatura.get("celsius").getAsDouble();
 
-        SensoresTermostato sensores = new SensoresTermostato(temperatura, limites, objetivo);
+        SensoresTermostato sensores = new SensoresTermostato(
+                tempActual,
+                limiteInferior,
+                limiteSuperior,
+                temperaturaObjetivo
+        );
 
         System.out.println("\n--- PERCEPCION DEL AGENTE ---");
         System.out.println("Temperatura actual: " + sensores.temperaturaActual() + " °C");
@@ -177,5 +185,13 @@ public class EntornoTermostato implements Entorno<SensoresTermostato, AccionTerm
     @Override
     public EstadoControl getEstadoActual() {
         return estadoActual;
+    }
+
+    @Override
+    public void cerrarRun() throws IOException, InterruptedException {
+        if (runId != null && estadoActual != null && estadoActual.isActivo()) {
+            System.out.println("Cerrando run activo en DBA Lab: " + runId);
+            cliente.cerrarRun(runId);
+        }
     }
 }

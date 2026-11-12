@@ -35,27 +35,37 @@ public abstract class BucleAgentico<S extends Sensor, A extends Accion> extends 
         super(agente);
     }
 
-    // --- Métodos Abstractos del Ciclo de Vida ---
+    // --- Métodos Gancho del Ciclo de Vida ---
 
     /**
-     * Tareas previas al ciclo de percepción-decisión-acción (p. ej. verificar si el run sigue activo).
+     * Gancho opcional para tareas previas al ciclo de percepción-decisión-acción.
+     * Por defecto no realiza ninguna acción; las subclases pueden sobreescribirlo si lo necesitan.
      *
-     * @throws Exception si ocurre un error durante las comprobaciones previas
+     * @throws Exception si ocurre un error durante las tareas previas
      */
-    protected abstract void antes() throws Exception;
+    protected void antes() throws Exception {
+    }
 
     /**
-     * Tareas posteriores a la acción ejecutada (p. ej. verificar resultado o registrar métricas).
+     * Gancho opcional para tareas posteriores a la acción ejecutada.
+     * Por defecto no realiza ninguna acción; las subclases pueden sobreescribirlo si lo necesitan.
      *
      * @throws Exception si ocurre un error durante las tareas posteriores
      */
-    protected abstract void despues() throws Exception;
+    protected void despues() throws Exception {
+    }
 
     // --- Ciclo Principal JADE ---
 
     @Override
     public void action() {
         try {
+            // Comprobamos si el run continúa activo antes de percibir
+            if (entorno.getEstadoActual() != null && !entorno.getEstadoActual().isActivo()) {
+                terminado = true;
+                return;
+            }
+
             antes();
             if (terminado) {
                 return;
@@ -63,10 +73,19 @@ public abstract class BucleAgentico<S extends Sensor, A extends Accion> extends 
 
             // 1. Percibir
             S sensores = entorno.leerSensores();
+            if (!entorno.getEstadoActual().isActivo()) {
+                terminado = true;
+                return;
+            }
+
             // 2. Decidir
             A accion = politica.aplicar(sensores);
+
             // 3. Actuar
             EstadoControl nuevoEstado = entorno.ejecutarAccion(accion);
+            if (!nuevoEstado.isActivo()) {
+                terminado = true;
+            }
 
             despues();
 

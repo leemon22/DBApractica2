@@ -123,12 +123,18 @@ classDiagram
             +isActivo()
             +EstadoControl(JsonObject)
         }
+        class ComponentesAgente~S,A~ {
+            <<record>>
+            +entorno
+            +bucle
+        }
         class Entorno~S,A~ {
             <<interface>>
             +iniciarRun()
             +leerSensores() S
             +ejecutarAccion(A) EstadoControl
             +getEstadoActual() EstadoControl
+            +cerrarRun()
         }
         class Politica~S,A~ {
             <<interface>>
@@ -136,14 +142,14 @@ classDiagram
         }
         class Agente~S,A~ {
             <<abstract>>
-            #iniciar()*
+            #iniciar()* ComponentesAgente
             #setup()
             #takeDown()
         }
         class BucleAgentico~S,A~ {
             <<abstract>>
-            #antes()*
-            #despues()*
+            #antes()
+            #despues()
             +action()
             +done()
         }
@@ -155,6 +161,7 @@ classDiagram
     Politica ..> Accion : decide A
     Agente *-- BucleAgentico : ejecuta
     Agente *-- Entorno : gestiona
+    Agente ..> ComponentesAgente : recibe de iniciar()
     BucleAgentico --> Entorno : usa
     BucleAgentico --> Politica : usa
     Entorno ..> EstadoControl : devuelve
@@ -163,8 +170,8 @@ classDiagram
 ```
 
 - **Contratos `Sensor` y `Accion`:** tipan fuertemente `Entorno<S, A>`, `Politica<S, A>`, `Agente<S, A>` y `BucleAgentico<S, A>` sin necesidad de casts inseguros ni supresión de advertencias.
-- **Protección contra saturación:** `ClienteHttpDba` incluye un retardo configurable entre peticiones (500 ms por defecto) para respetar la concurrencia del laboratorio compartido.
-- **Ciclo de vida:** `Agente` es abstracto y coordina `iniciar()`, `entorno.iniciarRun()` y `addBehaviour(bucle)`. Cada entorno concreto extiende `Agente` y `BucleAgentico` implementando sus métodos específicos.
+- **Protección contra saturación y protocolo HTTP:** `ClienteHttpDba` incluye un retardo configurable entre peticiones (500 ms por defecto) para respetar la concurrencia del laboratorio compartido, timeout de petición de 15 segundos y cabecera `Content-Type` solo en peticiones con cuerpo.
+- **Ciclo de vida y cierre:** `Agente` es abstracto y coordina `iniciar()` (que devuelve `ComponentesAgente`), `entorno.iniciarRun()` y `addBehaviour(bucle)`. En `takeDown()` invoca automáticamente `entorno.cerrarRun()` para no dejar runs zombie bloqueando el token del alumno.
 
 ---
 

@@ -180,6 +180,8 @@ public class ClienteHttpDba {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + path))
                 .header("Authorization", "Bearer " + token)
+                .header("Accept", "application/json")
+                .timeout(Duration.ofSeconds(15))
                 .GET()
                 .build();
 
@@ -202,9 +204,11 @@ public class ClienteHttpDba {
         HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl + path))
                 .header("Authorization", "Bearer " + token)
-                .header("Content-Type", "application/json");
+                .header("Accept", "application/json")
+                .timeout(Duration.ofSeconds(15));
 
         if (jsonBody != null && !jsonBody.isBlank()) {
+            builder.header("Content-Type", "application/json");
             builder.POST(HttpRequest.BodyPublishers.ofString(jsonBody));
         } else {
             builder.POST(HttpRequest.BodyPublishers.noBody());
@@ -221,8 +225,17 @@ public class ClienteHttpDba {
      */
     private void validarRespuesta(HttpResponse<String> respuesta, String path) {
         if (respuesta.statusCode() < 200 || respuesta.statusCode() >= 300) {
+            String detalle = respuesta.body();
+            try {
+                JsonObject jsonError = JsonParser.parseString(respuesta.body()).getAsJsonObject();
+                if (jsonError.has("code") && jsonError.has("message")) {
+                    detalle = jsonError.get("code").getAsString() + ": " + jsonError.get("message").getAsString();
+                }
+            } catch (Exception e) {
+                // Si no es un JSON estructurado con code/message, se mantiene el cuerpo original
+            }
             throw new IllegalStateException("Error HTTP " + respuesta.statusCode()
-                    + " en " + path + ": " + respuesta.body());
+                    + " en " + path + " -> " + detalle);
         }
     }
 }

@@ -77,6 +77,7 @@ DBApractica2/
 │   │   ├── Agente.java
 │   │   ├── BucleAgentico.java
 │   │   ├── ClienteHttpDba.java
+│   │   ├── ComponentesAgente.java
 │   │   ├── Configuracion.java
 │   │   ├── Entorno.java
 │   │   ├── EstadoControl.java
@@ -116,13 +117,18 @@ public interface Entorno<S extends Sensor, A extends Accion> {
     S leerSensores() throws IOException, InterruptedException;
     EstadoControl ejecutarAccion(A accion) throws IOException, InterruptedException;
     EstadoControl getEstadoActual();
+    void cerrarRun() throws IOException, InterruptedException;
 }
 public interface Politica<S extends Sensor, A extends Accion> {
     A aplicar(S sensores);
 }
+public record ComponentesAgente<S extends Sensor, A extends Accion>(
+    Entorno<S, A> entorno,
+    BucleAgentico<S, A> bucle
+) {}
 ```
 
-`Agente<S extends Sensor, A extends Accion>` es una clase abstracta que extiende `jade.core.Agent`. Su método `setup()` ejecuta `iniciar()` (donde la subclase concreta instancia su `Entorno` y su `BucleAgentico`), inicia el run en el entorno y añade el bucle agéntico con `addBehaviour()`. `BucleAgentico<S, A>` es una clase abstracta que extiende `SimpleBehaviour` e incorpora los ganchos de ciclo de vida `antes()` y `despues()`. `ClienteHttpDba` centraliza peticiones HTTP con token Bearer, retardo configurable entre peticiones (500 ms por defecto) y parseo directo a `JsonObject`.
+`Agente<S extends Sensor, A extends Accion>` es una clase abstracta que extiende `jade.core.Agent`. Su método `setup()` ejecuta `iniciar()` (que devuelve `ComponentesAgente`), inicia el run en el entorno y añade el bucle agéntico con `addBehaviour()`. En `takeDown()` invoca `entorno.cerrarRun()` para no dejar runs zombie. `BucleAgentico<S, A>` gestiona automáticamente la detección de estados terminales y ofrece métodos gancho opcionales `antes()` y `despues()`. `ClienteHttpDba` centraliza peticiones HTTP con token Bearer, retardo configurable entre peticiones (500 ms por defecto), timeout de 15 segundos y parseo directo a `JsonObject`.
 
 ## 4. Acceso a DBA Lab y reglas de seguridad
 
