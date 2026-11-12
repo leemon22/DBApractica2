@@ -3,33 +3,20 @@ package termostato;
 import base.Politica;
 
 /**
- * Política del termostato: decide encender o apagar la refrigeración según la temperatura.
- *
- * @author martinhernandezruiz
+ * Política de decisión para el termostato.
+ * Si la temperatura actual es mayor o igual que la objetivo, enciende la refrigeración;
+ * en caso contrario, la apaga.
  */
-public class PoliticaTermostato
-        implements Politica<SensoresTermostato, AccionTermostato> {
+public class PoliticaTermostato implements Politica<SensoresTermostato, AccionTermostato> {
 
     @Override
     public AccionTermostato aplicar(SensoresTermostato sensores) {
-
-        double temperatura = sensores.temperatura();
-
-        // Si alcanza el límite superior, encender.
-        if (temperatura >= sensores.limiteSuperior()) {
-            return AccionTermostato.ON;
+        AccionTermostato accion;
+        if (sensores.temperaturaActual() >= sensores.temperaturaObjetivo()) {
+            accion = AccionTermostato.ON;
+        } else {
+            accion = AccionTermostato.OFF;
         }
-
-        // Si alcanza el límite inferior, apagar.
-        if (temperatura <= sensores.limiteInferior()) {
-            return AccionTermostato.OFF;
-        }
-
-        // Dentro del intervalo, utilizar el objetivo como referencia.
-        if (temperatura > sensores.orientativa()) {
-            return AccionTermostato.ON;
-        }
-
-        return AccionTermostato.OFF;
+        return accion;
     }
 }

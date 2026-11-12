@@ -6,15 +6,8 @@ import jade.core.Runtime;
 import jade.wrapper.AgentContainer;
 import jade.wrapper.AgentController;
 
-import termostato.EntornoTermostato;
-import termostato.PoliticaTermostato;
-
 /**
- * Punto de entrada del bloque Termostato: arranca JADE y crea el agente
- * base.Agente con EntornoTermostato y PoliticaTermostato.
- * (Antes practica2.pkg1.Practica21.)
- *
- * @author pj
+ * Punto de entrada del bloque Termostato: arranca JADE y crea el agente termostato.AgenteTermostato.
  */
 public class LanzadorTermostato {
 
@@ -30,15 +23,11 @@ public class LanzadorTermostato {
             AgentContainer contenedor =
                     runtime.createMainContainer(perfil);
 
-            // Crear el entorno y la política del termostato.
-            EntornoTermostato entorno = new EntornoTermostato();
-            PoliticaTermostato politica = new PoliticaTermostato();
-
-            // Crear e iniciar el agente.
+            // Crear e iniciar el agente del termostato.
             AgentController agente = contenedor.createNewAgent(
                     "AgenteTermostato",
-                    "base.Agente",
-                    new Object[]{entorno, politica}
+                    "termostato.AgenteTermostato",
+                    null
             );
 
             agente.start();

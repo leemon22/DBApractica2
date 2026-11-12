@@ -1,5 +1,7 @@
 package grid;
 
+import base.Accion;
+
 // Las cuatro direcciones cardinales del Grid. También es la acción que decide la política:
 // cada movimiento es una dirección, y cada dirección conoce su código de acción en DBA Lab.
 //
@@ -7,7 +9,7 @@ package grid;
 // algoritmo del Tema 2 (arriba, derecha, abajo, izquierda): values() lo devuelve en ese orden.
 //
 // La coordenada y crece hacia abajo (fila desde arriba), así que el norte resta 1 a la y.
-public enum Direccion {
+public enum Direccion implements Accion {
     NORTE(0, -1, "grid.move.north", "north"),
     ESTE(1, 0, "grid.move.east", "east"),
     SUR(0, 1, "grid.move.south", "south"),
@@ -37,6 +39,11 @@ public enum Direccion {
 
     // Código que se envía en POST /runs/{runId}/actions.
     public String codigoAccion() {
+        return codigoAccion;
+    }
+
+    @Override
+    public String getCodigoAccion() {
         return codigoAccion;
     }
 

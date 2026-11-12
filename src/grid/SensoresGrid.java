@@ -1,5 +1,6 @@
 package grid;
 
+import base.Sensor;
 import java.util.Objects;
 import java.util.Set;
 
@@ -14,7 +15,7 @@ public record SensoresGrid(
         Posicion objetivo,
         Set<Direccion> bloqueadas,
         String modoEnergia,
-        int energiaRestante) {
+        int energiaRestante) implements Sensor {
 
     public SensoresGrid {
         Objects.requireNonNull(posicion, "posicion");

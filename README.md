@@ -90,21 +90,30 @@ En Windows el separador del classpath es `;` en lugar de `:`. Cada ejecución in
 
 ## Arquitectura común (`base`)
 
-Ambos bloques siguen el mismo ciclo: `BucleAgentico` comprueba que el *run* está `ACTIVE`, lee los sensores del `Entorno`, pide una acción a la `Politica` y la ejecuta, hasta recibir un estado terminal (`SUCCEEDED`, `FAILED`, `EXPIRED` o `INTERRUPTED`).
+Ambos bloques siguen el mismo ciclo de agente situado: `BucleAgentico` comprueba que el *run* está `ACTIVE` en su método `antes()`, lee los sensores del `Entorno`, pide una acción a la `Politica`, la ejecuta y valida el resultado en `despues()`, hasta recibir un estado terminal (`SUCCEEDED`, `FAILED`, `EXPIRED` o `INTERRUPTED`).
 
 ```mermaid
 classDiagram
     namespace Base {
+        class Sensor {
+            <<interface>>
+        }
+        class Accion {
+            <<interface>>
+            +getCodigoAccion() String
+        }
         class Configuracion {
             +getUrlLaboratorio()
             +getToken()
         }
         class ClienteHttpDba {
-            +getRetos()
-            +iniciarRun(challengeId)
-            +enviarPercepcion(runId, sensorId)
-            +enviarAccion(runId, actionCode)
-            +consultarEstado(runId)
+            +setTiempoEsperaMs(ms)
+            +getRetos() JsonObject
+            +iniciarRun(challengeId) JsonObject
+            +enviarPercepcion(runId, sensorId) JsonObject
+            +enviarAccion(runId, actionCode) JsonObject
+            +consultarEstado(runId) JsonObject
+            +cerrarRun(runId) JsonObject
         }
         class EstadoControl {
             <<record>>
@@ -112,10 +121,11 @@ classDiagram
             +runStatus
             +reasonCode
             +isActivo()
+            +EstadoControl(JsonObject)
         }
         class Entorno~S,A~ {
             <<interface>>
-            +iniciarRun(Configuracion)
+            +iniciarRun()
             +leerSensores() S
             +ejecutarAccion(A) EstadoControl
             +getEstadoActual() EstadoControl
@@ -124,24 +134,37 @@ classDiagram
             <<interface>>
             +aplicar(S) A
         }
-        class Agente {
-            +setup()
+        class Agente~S,A~ {
+            <<abstract>>
+            #iniciar()*
+            #setup()
+            #takeDown()
         }
         class BucleAgentico~S,A~ {
+            <<abstract>>
+            #antes()*
+            #despues()*
             +action()
             +done()
         }
     }
 
+    Entorno ..> Sensor : usa S
+    Entorno ..> Accion : usa A
+    Politica ..> Sensor : percibe S
+    Politica ..> Accion : decide A
     Agente *-- BucleAgentico : ejecuta
-    Agente ..> Configuracion : usa
+    Agente *-- Entorno : gestiona
     BucleAgentico --> Entorno : usa
     BucleAgentico --> Politica : usa
     Entorno ..> EstadoControl : devuelve
     Entorno ..> ClienteHttpDba : usa
+    ClienteHttpDba ..> Configuracion : lee
 ```
 
-`base.Agente` recibe como argumentos de JADE el entorno (primer argumento) y la política (segundo). Cualquier cambio en `base` afecta a los dos bloques: se acuerda con el equipo antes de integrarlo.
+- **Contratos `Sensor` y `Accion`:** tipan fuertemente `Entorno<S, A>`, `Politica<S, A>`, `Agente<S, A>` y `BucleAgentico<S, A>` sin necesidad de casts inseguros ni supresión de advertencias.
+- **Protección contra saturación:** `ClienteHttpDba` incluye un retardo configurable entre peticiones (500 ms por defecto) para respetar la concurrencia del laboratorio compartido.
+- **Ciclo de vida:** `Agente` es abstracto y coordina `iniciar()`, `entorno.iniciarRun()` y `addBehaviour(bucle)`. Cada entorno concreto extiende `Agente` y `BucleAgentico` implementando sus métodos específicos.
 
 ---
 
@@ -166,15 +189,19 @@ Cámara refrigerada. Cada acción aplicada avanza la simulación y puede sufrir 
 
 | Clase | Responsabilidad |
 |---|---|
-| `SensoresTermostato` | *Record* con temperatura, límites y temperatura orientativa. |
-| `AccionTermostato` | *Enum* `ON`/`OFF` con sus códigos de acción. |
-| `EntornoTermostato` | Descubre el reto `THERMOSTAT`, valida sensores y acciones anunciados, inicia el *run*, lee los tres sensores y envía la acción comprobando `actionStatus` y `runStatus`. Un `runStatus` no reconocido se traduce a `UNKNOWN` (no es `ACTIVE`, así que el bucle se detiene). |
-| `PoliticaTermostato` | Encender si `temperatura >= superior`; apagar si `temperatura <= inferior`; dentro del intervalo, encender si está por encima de la orientativa y apagar en caso contrario. |
+| `SensoresTermostato` | *Record* con `temperaturaActual`, `limiteInferior`, `limiteSuperior` y `temperaturaObjetivo`. Implementa `Sensor` y se instancia directamente desde los `JsonObject` de los sensores. |
+| `AccionTermostato` | *Enum* `ON`/`OFF` que implementa `Accion` con sus códigos de acción en la API. |
+| `EntornoTermostato` | Implementa `Entorno<SensoresTermostato, AccionTermostato>` sobre DBA Lab. Valida sensores/acciones, inicia el run, lee percepciones y ejecuta acciones comprobando `actionStatus` y `runStatus`. |
+| `PoliticaTermostato` | Implementa `Politica<SensoresTermostato, AccionTermostato>`: enciende refrigeración si `temperaturaActual >= temperaturaObjetivo`; en caso contrario la apaga. |
+| `AgenteTermostato` | Extiende `base.Agente`, instanciando en `iniciar()` el entorno, la política y el bucle agéntico del termostato. |
+| `BucleAgenticoTermostato` | Extiende `base.BucleAgentico`, comprobando en `antes()` y `despues()` si el run sigue `ACTIVE`. |
 
 ```mermaid
 classDiagram
     EntornoTermostato ..|> Entorno : implementa
     PoliticaTermostato ..|> Politica : implementa
+    AgenteTermostato --|> Agente : extiende
+    BucleAgenticoTermostato --|> BucleAgentico : extiende
     EntornoTermostato --> ClienteHttpDba : usa
     EntornoTermostato ..> SensoresTermostato : crea
     PoliticaTermostato ..> SensoresTermostato : lee

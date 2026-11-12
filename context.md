@@ -73,21 +73,30 @@ Estructura del repositorio (`main`): un único proyecto NetBeans; cada bloque es
 DBApractica2/
 ├── src/
 │   ├── base/
+│   │   ├── Accion.java
 │   │   ├── Agente.java
 │   │   ├── BucleAgentico.java
 │   │   ├── ClienteHttpDba.java
 │   │   ├── Configuracion.java
 │   │   ├── Entorno.java
 │   │   ├── EstadoControl.java
-│   │   └── Politica.java
+│   │   ├── Politica.java
+│   │   └── Sensor.java
 │   ├── termostato/                 # Bloque cerrado, resuelto con SUCCEEDED
-│   │   ├── SensoresTermostato.java
 │   │   ├── AccionTermostato.java
+│   │   ├── AgenteTermostato.java
+│   │   ├── BucleAgenticoTermostato.java
+│   │   ├── EntornoTermostato.java
 │   │   ├── PoliticaTermostato.java
-│   │   └── EntornoTermostato.java
-│   ├── grid/                       # Bloque Grid (por ahora solo package-info.java)
+│   │   └── SensoresTermostato.java
+│   ├── grid/                       # Bloque Grid
+│   │   ├── Direccion.java
+│   │   ├── Posicion.java
+│   │   ├── PoliticaGrid.java
+│   │   ├── SensoresGrid.java
+│   │   └── package-info.java
 │   └── lanzadores/
-│       ├── LanzadorTermostato.java # antes practica2/pkg1/Practica21.java; es main.class
+│       ├── LanzadorTermostato.java # es main.class
 │       └── LanzadorGrid.java       # pendiente
 ├── lib/                           # Dependencias JADE/Gson; revisar tracking
 ├── config.properties              # PRIVADO. Nunca versionar.
@@ -99,16 +108,21 @@ DBApractica2/
 **Interfaces del paquete común existentes en el repositorio revisado:**
 
 ```java
-interface Entorno<S,A> {
-    void iniciarRun(Configuracion config) throws Exception;
-    S leerSensores() throws Exception;
-    EstadoControl ejecutarAccion(A accion) throws Exception;
+public interface Sensor {}
+public interface Accion { String getCodigoAccion(); }
+
+public interface Entorno<S extends Sensor, A extends Accion> {
+    void iniciarRun() throws IOException, InterruptedException;
+    S leerSensores() throws IOException, InterruptedException;
+    EstadoControl ejecutarAccion(A accion) throws IOException, InterruptedException;
     EstadoControl getEstadoActual();
 }
-interface Politica<S,A> { A aplicar(S sensores); }
+public interface Politica<S extends Sensor, A extends Accion> {
+    A aplicar(S sensores);
+}
 ```
 
-`Agente` extiende `jade.core.Agent`, recibe `Entorno` y `Politica` por argumentos, carga `config.properties`, inicia el entorno y añade `BucleAgentico`. El bucle `SimpleBehaviour` consulta estado, percibe, decide, actúa y termina cuando el estado deja de ser `ACTIVE`. `ClienteHttpDba` centraliza peticiones HTTP con token Bearer.
+`Agente<S extends Sensor, A extends Accion>` es una clase abstracta que extiende `jade.core.Agent`. Su método `setup()` ejecuta `iniciar()` (donde la subclase concreta instancia su `Entorno` y su `BucleAgentico`), inicia el run en el entorno y añade el bucle agéntico con `addBehaviour()`. `BucleAgentico<S, A>` es una clase abstracta que extiende `SimpleBehaviour` e incorpora los ganchos de ciclo de vida `antes()` y `despues()`. `ClienteHttpDba` centraliza peticiones HTTP con token Bearer, retardo configurable entre peticiones (500 ms por defecto) y parseo directo a `JsonObject`.
 
 ## 4. Acceso a DBA Lab y reglas de seguridad
 
@@ -157,13 +171,15 @@ El entorno representa una cámara refrigerada. Los extremos del intervalo de seg
 
 **Implementación local realizada:**
 
-- `SensoresTermostato.java`: `record` con `temperatura`, `limiteInferior`, `limiteSuperior`, `orientativa` (`double`). El uso de `record` es decisión del grupo, no exigencia docente.
-- `AccionTermostato.java`: enum `ON`/`OFF` con sus códigos exactos. El uso de `enum` tampoco lo prescribe el profesor.
-- `PoliticaTermostato.java`: implementa `Politica<SensoresTermostato,AccionTermostato>`; política básica: refrigerar si `temperatura >= superior`, apagar si `temperatura <= inferior`, y dentro de límites comparar con `orientativa` (`ON` por encima, `OFF` en caso contrario). Esta **heurística es elección del grupo y no garantía de seguridad para todos los escenarios**; debe defenderse y probarse contra perturbaciones.
-- `EntornoTermostato.java`: implementa `Entorno<SensoresTermostato,AccionTermostato>` y usa `ClienteHttpDba` + Gson para descubrir el reto tipo `THERMOSTAT`, validar sensores/acciones anunciados, iniciar run, leer las tres percepciones, actualizar `EstadoControl`, emitir acción y comprobar `actionStatus`/`runStatus`. Desde el 29/10, un `runStatus` no reconocido se traduce a `RunStatus.UNKNOWN` (método `convertirEstado`) en lugar de lanzar `IllegalArgumentException`; como no es `ACTIVE`, el bucle se detiene. Se hizo en el paquete `termostato` para no modificar `base` sin consenso; al pasar la lógica común a `base` para Grid, debería moverse allí.
-- `LanzadorTermostato.java` (antes `Practica21.java`): punto de entrada que inicia JADE, crea el contenedor principal y el agente `base.Agente` con `EntornoTermostato` y `PoliticaTermostato`.
+- `SensoresTermostato.java`: `record` con `temperaturaActual`, `limiteInferior`, `limiteSuperior` y `temperaturaObjetivo` (`double`). Implementa `Sensor` y se instancia directamente desde los objetos JSON recibidos de la API.
+- `AccionTermostato.java`: enum `ON`/`OFF` que implementa `Accion` con sus códigos exactos de acción.
+- `PoliticaTermostato.java`: implementa `Politica<SensoresTermostato, AccionTermostato>`: encender refrigeración (`ON`) si `temperaturaActual >= temperaturaObjetivo`; en caso contrario, apagar (`OFF`). Un único punto de retorno y asignación directa.
+- `EntornoTermostato.java`: implementa `Entorno<SensoresTermostato, AccionTermostato>` y usa `ClienteHttpDba` para descubrir el reto `THERMOSTAT`, validar capacidades, iniciar el run, leer percepciones y ejecutar acciones comprobando `actionStatus` y `runStatus`. Se apoya en constructores de `SensoresTermostato` y `EstadoControl` a partir de `JsonObject`. Acota sus excepciones a `IOException` e `InterruptedException`.
+- `AgenteTermostato.java`: subclase de `Agente<SensoresTermostato, AccionTermostato>` que inicializa en `iniciar()` el entorno, la política y el bucle agéntico del termostato.
+- `BucleAgenticoTermostato.java`: subclase de `BucleAgentico<SensoresTermostato, AccionTermostato>` que valida en `antes()` y `despues()` si el run continúa `ACTIVE`.
+- `LanzadorTermostato.java`: punto de entrada que inicia JADE, crea el contenedor principal y lanza `termostato.AgenteTermostato`.
 
-**Estado en `main` (29/10/2026):** este código está integrado en `main` (PR #2). Se eliminaron los comentarios de plantilla de NetBeans y se añadió una descripción a cada clase. La lógica genérica de DBA Lab (descubrimiento, validación de capacidades, lectura de `control`, sensores y acciones) sigue dentro de `EntornoTermostato`; **pendiente** extraerla a `base` antes de Grid.
+**Estado en rama `refactor-termostato` (noviembre 2026):** refactorización de arquitectura base y termostato según correcciones docentes: interfaces `Sensor`/`Accion`, retardo configurable en `ClienteHttpDba` para no saturar el servidor, clases abstractas `Agente` y `BucleAgentico` fuertemente tipadas y simplificación de `PoliticaTermostato`. Probado en ejecución real manteniendo el comportamiento `SUCCEEDED`.
 
 **Observación técnica a revisar:** la lógica de excepción y de finalización cambió varias veces durante el desarrollo. La última ejecución satisfactoria confirma terminación normal, pero antes de integrar el proyecto hay que inspeccionar el código exacto, evitar clasificar errores de red como finalización normal y comprobar el caso de estado terminal detectado durante la lectura de sensores. No dar por hecha la corrección de todas las rutas excepcionales basándose solo en las pruebas felices.
 

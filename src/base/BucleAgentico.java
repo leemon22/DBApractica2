@@ -3,32 +3,61 @@ package base;
 import jade.core.Agent;
 import jade.core.behaviours.SimpleBehaviour;
 
-// Clásico bucle de agente que lee sensores, aplica la política y ejecuta acciones en el entorno
-// hasta que el runStatus sea distinto de ACTIVE.
-// S: Sensores leídos del entorno
-// A: Acción a ejecutar en el entorno
-public final class BucleAgentico<S, A> extends SimpleBehaviour {
+/**
+ * Bucle agéntico abstracto que ejecuta el ciclo de percepción-decisión-acción en el entorno.
+ * Proporciona el esqueleto del ciclo y los métodos abstractos antes() y despues(), dejando
+ * a las subclases la gestión de sus dependencias (entorno y política) en sus propios constructores.
+ *
+ * @param <S> tipo de percepciones que extiende Sensor
+ * @param <A> tipo de acciones que extiende Accion
+ */
+public abstract class BucleAgentico<S extends Sensor, A extends Accion> extends SimpleBehaviour {
 
-    private final Entorno<S, A> entorno;
-    private final Politica<S, A> politica;
-    private boolean terminado = false;
+    protected Entorno<S, A> entorno;
+    protected Politica<S, A> politica;
+    protected boolean terminado = false;
 
-    public BucleAgentico(Agent a, Entorno<S, A> entorno, Politica<S, A> politica) {
-        super(a);
-        this.entorno = entorno;
-        this.politica = politica;
+    // --- Constructores ---
+
+    /**
+     * Constructor por defecto para subclases que no requieren pasar el agente inmediatamente.
+     */
+    protected BucleAgentico() {
+        super();
     }
 
-    // Clásica iteración del agente: leer sensores, aplicar política, ejecutar acción y comprobar
-    // estado.
+    /**
+     * Constructor protegido que asocia el agente JADE al comportamiento.
+     *
+     * @param agente agente JADE que ejecuta este bucle
+     */
+    protected BucleAgentico(Agent agente) {
+        super(agente);
+    }
+
+    // --- Métodos Abstractos del Ciclo de Vida ---
+
+    /**
+     * Tareas previas al ciclo de percepción-decisión-acción (p. ej. verificar si el run sigue activo).
+     *
+     * @throws Exception si ocurre un error durante las comprobaciones previas
+     */
+    protected abstract void antes() throws Exception;
+
+    /**
+     * Tareas posteriores a la acción ejecutada (p. ej. verificar resultado o registrar métricas).
+     *
+     * @throws Exception si ocurre un error durante las tareas posteriores
+     */
+    protected abstract void despues() throws Exception;
+
+    // --- Ciclo Principal JADE ---
+
     @Override
     public void action() {
         try {
-            EstadoControl estado = entorno.getEstadoActual();
-
-            // Comprobamos si el runStatus sigue siendo ACTIVE antes de hacer nada más.
-            if (!estado.isActivo()) {
-                terminado = true;
+            antes();
+            if (terminado) {
                 return;
             }
 
@@ -39,48 +68,41 @@ public final class BucleAgentico<S, A> extends SimpleBehaviour {
             // 3. Actuar
             EstadoControl nuevoEstado = entorno.ejecutarAccion(accion);
 
-            // Comprobamos si el runStatus sigue siendo ACTIVE después de ejecutar la acción.
-            if (!nuevoEstado.isActivo()) {
-                terminado = true;
-            }
+            despues();
+
         } catch (Exception e) {
-
-            EstadoControl estado = entorno.getEstadoActual();
-
-            if (estado != null && !estado.isActivo()
-                    && estado.runStatus()
-                        != EstadoControl.RunStatus.UNKNOWN) {
-
-                System.out.println(
-                    "Ejecucion finalizada: "
-                    + estado.runStatus()
-                    + " | Motivo: " + estado.reasonCode()
-                );
-
-            } else {
-                System.err.println(
-                    "Error durante la ejecucion del agente: "
-                    + e.getMessage()
-                );
-                e.printStackTrace();
-            }
-
+            manejarError(e);
             terminado = true;
         }
-
     }
 
-    // Condición de parada: el runStatus deja de ser ACTIVE o se produce un error.
-   
-        @Override
-        public boolean done() {
-            return terminado;
-        }
+    /**
+     * Gestiona las excepciones producidas durante la ejecución del bucle, distinguiendo
+     * entre la finalización oficial del run por DBA Lab y errores inesperados.
+     */
+    protected void manejarError(Exception e) {
+        EstadoControl estado = (entorno != null) ? entorno.getEstadoActual() : null;
 
-        @Override
-        public int onEnd() {
-            myAgent.doDelete();
-            return 0;
-        }
+        if (estado != null && !estado.isActivo()
+                && estado.runStatus() != EstadoControl.RunStatus.UNKNOWN) {
 
+            System.out.println("Ejecución finalizada: " + estado.runStatus()
+                    + " | Motivo: " + estado.reasonCode());
+
+        } else {
+            System.err.println("Error durante la ejecución del agente: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    @Override
+    public boolean done() {
+        return terminado;
+    }
+
+    @Override
+    public int onEnd() {
+        myAgent.doDelete();
+        return 0;
+    }
 }
