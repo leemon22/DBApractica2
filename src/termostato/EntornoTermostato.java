@@ -1,197 +1,164 @@
 package termostato;
 
 import base.ClienteHttpDba;
+import base.Configuracion;
 import base.Entorno;
-import base.EstadoControl;
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
+import base.InfoReto;
+import base.LecturaSensor;
+import base.RespuestaAccion;
+import base.Visualizador;
 import java.io.IOException;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 /**
- * Entorno del termostato: descubre el reto, inicia el run, lee sensores y envía acciones a DBA Lab.
+ * Entorno específico para el reto del termostato.
+ * Gestiona el descubrimiento del reto, el arranque del run, la consulta de percepciones
+ * físicas de temperatura y la traducción de órdenes semánticas a códigos de red de DBA Lab.
  */
-public class EntornoTermostato implements Entorno<SensoresTermostato, AccionTermostato> {
+public class EntornoTermostato extends Entorno<SensoresTermostato, AccionTermostato> {
 
-    private final ClienteHttpDba cliente;
-    private EstadoControl estadoActual;
-    private String runId;
+    // Códigos oficiales de la API de DBA Lab
+    private static final String SENSOR_TEMPERATURA = "thermostat.temperature";
+    private static final String SENSOR_LIMITES = "thermostat.limits";
+    private static final String SENSOR_OBJETIVO = "thermostat.target";
+    private static final String ACCION_REFRIGERACION_ON = "thermostat.refrigeration.on";
+    private static final String ACCION_REFRIGERACION_OFF = "thermostat.refrigeration.off";
 
-    // Parámetros invariantes del reto (se leen una sola vez al inicio para optimizar la red)
-    private double limiteInferior;
-    private double limiteSuperior;
-    private double temperaturaObjetivo;
+    // Parámetros invariantes del reto agrupados en un record (leídos una sola vez al inicio)
+    private LimitesTermostato limites;
+    private final Optional<Long> challengeIdPreferido;
 
     // --- Constructores ---
 
     /**
-     * Constructor por defecto: inicializa el cliente HTTP a partir de config.properties.
+     * Constructor por defecto: lee configuración de "config.properties" y usa la vista de consola.
      */
     public EntornoTermostato() {
-        this(new ClienteHttpDba());
+        this(new ClienteHttpDba(), new VisualizadorTermostato(), new Configuracion("config.properties").getChallengeId());
     }
 
     /**
-     * Constructor con cliente HTTP explícito.
+     * Constructor con cliente HTTP explícito y visualizador de consola predeterminado.
      *
      * @param cliente cliente HTTP configurado
      */
     public EntornoTermostato(ClienteHttpDba cliente) {
-        this.cliente = cliente;
-    }
-
-    // --- Validación de Capacidades y Consultas Internas ---
-
-    /**
-     * Valida que el reto de termostato anunciado por DBA Lab incluya todos los sensores y acciones requeridos.
-     */
-    private void validarCapacidades(JsonObject reto) {
-        JsonArray sensores = reto.getAsJsonArray("sensorCodes");
-        JsonArray acciones = reto.getAsJsonArray("actionCodes");
-
-        String[] sensoresNecesarios = {
-            "thermostat.temperature",
-            "thermostat.limits",
-            "thermostat.target"
-        };
-
-        String[] accionesNecesarias = {
-            "thermostat.refrigeration.on",
-            "thermostat.refrigeration.off"
-        };
-
-        for (String sensor : sensoresNecesarios) {
-            boolean disponible = false;
-            for (JsonElement elemento : sensores) {
-                if (sensor.equals(elemento.getAsString())) {
-                    disponible = true;
-                    break;
-                }
-            }
-            if (!disponible) {
-                throw new IllegalStateException("Sensor no disponible: " + sensor);
-            }
-        }
-
-        for (String accion : accionesNecesarias) {
-            boolean disponible = false;
-            for (JsonElement elemento : acciones) {
-                if (accion.equals(elemento.getAsString())) {
-                    disponible = true;
-                    break;
-                }
-            }
-            if (!disponible) {
-                throw new IllegalStateException("Accion no disponible: " + accion);
-            }
-        }
+        this(cliente, new VisualizadorTermostato(), Optional.empty());
     }
 
     /**
-     * Consulta una percepción individual en DBA Lab, actualiza el estado oficial y retorna el valor.
+     * Constructor con cliente y visualizador inyectados.
+     *
+     * @param cliente      cliente HTTP configurado
+     * @param visualizador visualizador de eventos del entorno
      */
-    private JsonObject consultarSensor(String sensorId) throws IOException, InterruptedException {
-        JsonObject respuesta = cliente.enviarPercepcion(runId, sensorId);
-        estadoActual = new EstadoControl(respuesta.getAsJsonObject("control"));
-        return respuesta.getAsJsonObject("value");
+    public EntornoTermostato(ClienteHttpDba cliente, Visualizador<SensoresTermostato, AccionTermostato> visualizador) {
+        this(cliente, visualizador, Optional.empty());
+    }
+
+    /**
+     * Constructor completo con inyección de todas las dependencias.
+     *
+     * @param cliente              cliente HTTP configurado
+     * @param visualizador         visualizador de eventos del entorno
+     * @param challengeIdPreferido identificador de reto opcional
+     */
+    public EntornoTermostato(
+            ClienteHttpDba cliente,
+            Visualizador<SensoresTermostato, AccionTermostato> visualizador,
+            Optional<Long> challengeIdPreferido) {
+        super(cliente, visualizador);
+        this.challengeIdPreferido = Objects.requireNonNull(challengeIdPreferido, "El challengeIdPreferido no puede ser nulo");
     }
 
     // --- Implementación de Entorno ---
 
     @Override
     public void iniciarRun() throws IOException, InterruptedException {
-        JsonObject json = cliente.getRetos();
-        JsonArray retos = json.getAsJsonArray("challenges");
+        InfoReto reto = seleccionarReto("THERMOSTAT", challengeIdPreferido)
+                .orElseThrow(() -> new IllegalStateException("No hay retos de termostato compatibles disponibles en DBA Lab"));
 
-        boolean encontrado = false;
+        validarCapacidades(reto);
 
-        for (JsonElement elemento : retos) {
-            JsonObject reto = elemento.getAsJsonObject();
-            String tipo = reto.get("environmentType").getAsString();
+        visualizador.mostrarRetoEncontrado(reto);
+        this.estadoActual = cliente.iniciarRun(reto.id());
+        this.runId = estadoActual.runId();
 
-            if ("THERMOSTAT".equals(tipo)) {
-                validarCapacidades(reto);
+        visualizador.mostrarInicio(runId, estadoActual);
 
-                long challengeId = reto.get("id").getAsLong();
-                System.out.println("Reto termostato encontrado: " + challengeId);
+        // Lectura única de parámetros invariantes al inicio del reto
+        LecturaSensor lecturaLimites = cliente.consultarSensor(runId, SENSOR_LIMITES);
+        LecturaSensor lecturaObjetivo = cliente.consultarSensor(runId, SENSOR_OBJETIVO);
 
-                JsonObject respuestaInicio = cliente.iniciarRun(challengeId);
-                estadoActual = new EstadoControl(respuestaInicio.getAsJsonObject("control"));
-                runId = estadoActual.runId();
-
-                System.out.println("Run iniciado: " + runId);
-                System.out.println("Estado: " + estadoActual.runStatus());
-
-                // Leemos los parámetros invariantes del reto una sola vez al arrancar
-                JsonObject limites = consultarSensor("thermostat.limits");
-                JsonObject objetivo = consultarSensor("thermostat.target");
-                this.limiteInferior = limites.get("lower").getAsDouble();
-                this.limiteSuperior = limites.get("upper").getAsDouble();
-                this.temperaturaObjetivo = objetivo.get("celsius").getAsDouble();
-
-                encontrado = true;
-                break;
-            }
-        }
-
-        if (!encontrado) {
-            throw new IllegalStateException("No hay retos de termostato disponibles");
-        }
+        this.limites = new LimitesTermostato(
+                lecturaLimites.getDouble("lower"),
+                lecturaLimites.getDouble("upper"),
+                lecturaObjetivo.getDouble("celsius")
+        );
     }
 
     @Override
     public SensoresTermostato leerSensores() throws IOException, InterruptedException {
-        JsonObject temperatura = consultarSensor("thermostat.temperature");
-        double tempActual = temperatura.get("celsius").getAsDouble();
+        LecturaSensor lecturaTemp = cliente.consultarSensor(runId, SENSOR_TEMPERATURA);
+        this.estadoActual = lecturaTemp.control();
 
         SensoresTermostato sensores = new SensoresTermostato(
-                tempActual,
-                limiteInferior,
-                limiteSuperior,
-                temperaturaObjetivo
+                lecturaTemp.getDouble("celsius"),
+                limites
         );
 
-        System.out.println("\n--- PERCEPCION DEL AGENTE ---");
-        System.out.println("Temperatura actual: " + sensores.temperaturaActual() + " °C");
-        System.out.println("Limites permitidos: [" + sensores.limiteInferior() + ", " + sensores.limiteSuperior() + "] °C");
-        System.out.println("Temperatura objetivo: " + sensores.temperaturaObjetivo() + " °C");
-
+        visualizador.mostrarPercepcion(sensores);
         return sensores;
     }
 
     @Override
-    public EstadoControl ejecutarAccion(AccionTermostato accion) throws IOException, InterruptedException {
-        JsonObject respuesta = cliente.enviarAccion(runId, accion.getCodigoAccion());
-        String resultado = respuesta.get("actionStatus").getAsString();
+    public void ejecutarAccion(AccionTermostato accion) throws IOException, InterruptedException {
+        String codigoAccion = traducirAccion(accion);
+        RespuestaAccion respuesta = cliente.enviarAccion(runId, codigoAccion);
+        this.estadoActual = respuesta.control();
 
-        estadoActual = new EstadoControl(respuesta.getAsJsonObject("control"));
+        visualizador.mostrarAccion(accion, respuesta.actionStatus(), estadoActual);
 
-        System.out.println(
-                "Accion: " + accion
-                + " | Resultado: " + resultado
-                + " | Estado: " + estadoActual.runStatus()
+        if (!respuesta.isAplicada()) {
+            String motivo = respuesta.motivo().orElse("Desconocido");
+            throw new IllegalStateException("Acción rechazada por DBA Lab: " + motivo);
+        }
+    }
+
+    // --- Traducción de Acciones Semánticas a Códigos de Red ---
+
+    private String traducirAccion(AccionTermostato accion) {
+        return switch (accion) {
+            case ON -> ACCION_REFRIGERACION_ON;
+            case OFF -> ACCION_REFRIGERACION_OFF;
+        };
+    }
+
+    // --- Validación de Capacidades del Reto ---
+
+    private void validarCapacidades(InfoReto reto) {
+        List<String> sensoresNecesarios = List.of(
+                SENSOR_TEMPERATURA,
+                SENSOR_LIMITES,
+                SENSOR_OBJETIVO
+        );
+        List<String> accionesNecesarias = List.of(
+                ACCION_REFRIGERACION_ON,
+                ACCION_REFRIGERACION_OFF
         );
 
-        if ("REJECTED".equals(resultado)) {
-            String motivo = respuesta.has("reasonCode") && !respuesta.get("reasonCode").isJsonNull()
-                    ? respuesta.get("reasonCode").getAsString()
-                    : "Desconocido";
-            throw new IllegalStateException("Accion rechazada por DBA Lab: " + motivo);
+        for (String sensor : sensoresNecesarios) {
+            if (!reto.contieneSensor(sensor)) {
+                throw new IllegalStateException("Sensor requerido no disponible en el reto: " + sensor);
+            }
         }
 
-        return estadoActual;
-    }
-
-    @Override
-    public EstadoControl getEstadoActual() {
-        return estadoActual;
-    }
-
-    @Override
-    public void cerrarRun() throws IOException, InterruptedException {
-        if (runId != null && estadoActual != null && estadoActual.isActivo()) {
-            System.out.println("Cerrando run activo en DBA Lab: " + runId);
-            cliente.cerrarRun(runId);
+        for (String accion : accionesNecesarias) {
+            if (!reto.contieneAccion(accion)) {
+                throw new IllegalStateException("Acción requerida no disponible en el reto: " + accion);
+            }
         }
     }
 }

@@ -1,12 +1,8 @@
 package base;
 
 /**
- * Interfaz que representa una acción ejecutable en el entorno de DBA Lab.
+ * Representa una acción semántica ejecutable por el agente.
+ * Se encuentra desacoplada de las cadenas de texto del protocolo de comunicación o infraestructura.
  */
 public interface Accion {
-
-    /**
-     * Devuelve el código oficial de la acción según la API de DBA Lab.
-     */
-    String getCodigoAccion();
 }

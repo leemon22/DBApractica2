@@ -1,30 +1,53 @@
 package termostato;
 
 import base.Sensor;
-import com.google.gson.JsonObject;
+import java.util.Objects;
 
 /**
- * Percepciones del termostato: temperatura actual, límites permitidos y temperatura objetivo.
+ * Percepciones físicas del termostato.
+ * Combina la lectura dinámica de temperatura actual con los límites invariantes del reto.
+ *
+ * @param temperaturaActual lectura de temperatura en el paso actual (°C)
+ * @param limites           límites permitidos y temperatura objetivo del reto
  */
 public record SensoresTermostato(
         double temperaturaActual,
-        double limiteInferior,
-        double limiteSuperior,
-        double temperaturaObjetivo) implements Sensor {
+        LimitesTermostato limites
+) implements Sensor {
+
+    public SensoresTermostato {
+        Objects.requireNonNull(limites, "Los límites del termostato no pueden ser nulos");
+    }
 
     /**
-     * Construye las percepciones a partir de los objetos JSON devueltos por DBA Lab.
-     *
-     * @param temperatura JSON de thermostat.temperature
-     * @param limites     JSON de thermostat.limits
-     * @param objetivo    JSON de thermostat.target
+     * Constructor de conveniencia que agrupa los parámetros invariantes automáticamente.
      */
-    public SensoresTermostato(JsonObject temperatura, JsonObject limites, JsonObject objetivo) {
-        this(
-                temperatura.get("celsius").getAsDouble(),
-                limites.get("lower").getAsDouble(),
-                limites.get("upper").getAsDouble(),
-                objetivo.get("celsius").getAsDouble()
-        );
+    public SensoresTermostato(
+            double temperaturaActual,
+            double limiteInferior,
+            double limiteSuperior,
+            double temperaturaObjetivo) {
+        this(temperaturaActual, new LimitesTermostato(limiteInferior, limiteSuperior, temperaturaObjetivo));
+    }
+
+    /**
+     * Límite inferior permitido para la temperatura (°C).
+     */
+    public double limiteInferior() {
+        return limites.inferior();
+    }
+
+    /**
+     * Límite superior permitido para la temperatura (°C).
+     */
+    public double limiteSuperior() {
+        return limites.superior();
+    }
+
+    /**
+     * Temperatura objetivo orientativa (°C).
+     */
+    public double temperaturaObjetivo() {
+        return limites.objetivo();
     }
 }

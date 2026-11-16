@@ -81,15 +81,21 @@ DBApractica2/
 │   │   ├── Configuracion.java
 │   │   ├── Entorno.java
 │   │   ├── EstadoControl.java
+│   │   ├── InfoReto.java
+│   │   ├── LecturaSensor.java
 │   │   ├── Politica.java
-│   │   └── Sensor.java
+│   │   ├── RespuestaAccion.java
+│   │   ├── Sensor.java
+│   │   └── Visualizador.java
 │   ├── termostato/                 # Bloque cerrado, resuelto con SUCCEEDED
 │   │   ├── AccionTermostato.java
 │   │   ├── AgenteTermostato.java
 │   │   ├── BucleAgenticoTermostato.java
 │   │   ├── EntornoTermostato.java
+│   │   ├── LimitesTermostato.java
 │   │   ├── PoliticaTermostato.java
-│   │   └── SensoresTermostato.java
+│   │   ├── SensoresTermostato.java
+│   │   └── VisualizadorTermostato.java
 │   ├── grid/                       # Bloque Grid
 │   │   ├── Direccion.java
 │   │   ├── Posicion.java
@@ -106,21 +112,30 @@ DBApractica2/
 └── README.md
 ```
 
-**Interfaces del paquete común existentes en el repositorio revisado:**
+**Contratos del paquete base (`base`):**
 
 ```java
 public interface Sensor {}
-public interface Accion { String getCodigoAccion(); }
+public interface Accion {}
 
-public interface Entorno<S extends Sensor, A extends Accion> {
-    void iniciarRun() throws IOException, InterruptedException;
-    S leerSensores() throws IOException, InterruptedException;
-    EstadoControl ejecutarAccion(A accion) throws IOException, InterruptedException;
-    EstadoControl getEstadoActual();
-    void cerrarRun() throws IOException, InterruptedException;
+public abstract class Entorno<S extends Sensor, A extends Accion> {
+    public abstract void iniciarRun() throws IOException, InterruptedException;
+    public abstract S leerSensores() throws IOException, InterruptedException;
+    public abstract void ejecutarAccion(A accion) throws IOException, InterruptedException;
+    public boolean isActivo();
+    public Optional<EstadoControl> getEstadoControl();
+    public void cerrarRun() throws IOException, InterruptedException;
 }
 public interface Politica<S extends Sensor, A extends Accion> {
     A aplicar(S sensores);
+}
+public interface Visualizador<S extends Sensor, A extends Accion> {
+    void mostrarRetoEncontrado(InfoReto reto);
+    void mostrarInicio(String runId, EstadoControl estado);
+    void mostrarPercepcion(S sensores);
+    void mostrarAccion(A accion, String resultado, EstadoControl nuevoEstado);
+    void mostrarCierre(String runId);
+    void mostrarFin(EstadoControl estadoFinal);
 }
 public record ComponentesAgente<S extends Sensor, A extends Accion>(
     Entorno<S, A> entorno,
@@ -128,7 +143,7 @@ public record ComponentesAgente<S extends Sensor, A extends Accion>(
 ) {}
 ```
 
-`Agente<S extends Sensor, A extends Accion>` es una clase abstracta que extiende `jade.core.Agent`. Su método `setup()` ejecuta `iniciar()` (que devuelve `ComponentesAgente`), inicia el run en el entorno y añade el bucle agéntico con `addBehaviour()`. En `takeDown()` invoca `entorno.cerrarRun()` para no dejar runs zombie. `BucleAgentico<S, A>` gestiona automáticamente la detección de estados terminales y ofrece métodos gancho opcionales `antes()` y `despues()`. `ClienteHttpDba` centraliza peticiones HTTP con token Bearer, retardo configurable entre peticiones (500 ms por defecto), timeout de 15 segundos y parseo directo a `JsonObject`.
+`Agente<S extends Sensor, A extends Accion>` es una clase abstracta que extiende `jade.core.Agent`. Su método `setup()` ejecuta `iniciar()` (que devuelve `ComponentesAgente`), inicia el run en el entorno y añade el bucle agéntico con `addBehaviour()`. En `takeDown()` invoca `entorno.cerrarRun()` para no dejar runs zombie. `BucleAgentico<S, A>` ejecuta el ciclo canónico percepción-decisión-acción y delega el control de parada en `antes()` y `despues()`. `ClienteHttpDba` encapsula completamente la serialización y deserialización JSON con Gson, devolviendo modelos Java puros (`InfoReto`, `LecturaSensor`, `RespuestaAccion`, `EstadoControl`).
 
 ## 4. Acceso a DBA Lab y reglas de seguridad
 

@@ -2,70 +2,53 @@ package base;
 
 import jade.core.Agent;
 import jade.core.behaviours.SimpleBehaviour;
+import java.util.Objects;
 
 /**
  * Bucle agéntico abstracto que ejecuta el ciclo de percepción-decisión-acción en el entorno.
- * Proporciona el esqueleto del ciclo y los métodos abstractos antes() y despues(), dejando
- * a las subclases la gestión de sus dependencias (entorno y política) en sus propios constructores.
+ * Proporciona el esqueleto canónico del ciclo y los métodos gancho {@code antes()} y {@code despues()}.
  *
- * @param <S> tipo de percepciones que extiende Sensor
- * @param <A> tipo de acciones que extiende Accion
+ * @param <S> tipo de percepciones que extiende {@link Sensor}
+ * @param <A> tipo de acciones que extiende {@link Accion}
  */
 public abstract class BucleAgentico<S extends Sensor, A extends Accion> extends SimpleBehaviour {
 
-    protected Entorno<S, A> entorno;
-    protected Politica<S, A> politica;
+    protected final Entorno<S, A> entorno;
+    protected final Politica<S, A> politica;
     protected boolean terminado = false;
 
-    // --- Constructores ---
-
     /**
-     * Constructor por defecto para subclases que no requieren pasar el agente inmediatamente.
-     */
-    protected BucleAgentico() {
-        super();
-    }
-
-    /**
-     * Constructor protegido que asocia el agente JADE al comportamiento.
+     * Construye el bucle agéntico asociando el agente JADE, el entorno y la política de decisión.
      *
-     * @param agente agente JADE que ejecuta este bucle
+     * @param agente   agente JADE que ejecuta este comportamiento
+     * @param entorno  entorno con el que interactúa el agente
+     * @param politica política que decide las acciones a partir de las percepciones
      */
-    protected BucleAgentico(Agent agente) {
-        super(agente);
+    public BucleAgentico(Agent agente, Entorno<S, A> entorno, Politica<S, A> politica) {
+        super(Objects.requireNonNull(agente, "El agente no puede ser nulo"));
+        this.entorno = Objects.requireNonNull(entorno, "El entorno no puede ser nulo");
+        this.politica = Objects.requireNonNull(politica, "La política no puede ser nula");
     }
 
-    // --- Métodos Gancho del Ciclo de Vida ---
-
     /**
-     * Gancho opcional para tareas previas al ciclo de percepción-decisión-acción.
-     * Por defecto no realiza ninguna acción; las subclases pueden sobreescribirlo si lo necesitan.
+     * Tareas o comprobaciones previas al ciclo de percepción-decisión-acción.
+     * Si se detecta una condición de parada, debe marcar {@code terminado = true}.
      *
      * @throws Exception si ocurre un error durante las tareas previas
      */
-    protected void antes() throws Exception {
-    }
+    protected abstract void antes() throws Exception;
 
     /**
-     * Gancho opcional para tareas posteriores a la acción ejecutada.
-     * Por defecto no realiza ninguna acción; las subclases pueden sobreescribirlo si lo necesitan.
+     * Tareas o comprobaciones posteriores a la acción física ejecutada.
+     * Si se detecta una condición de parada, debe marcar {@code terminado = true}.
      *
      * @throws Exception si ocurre un error durante las tareas posteriores
      */
-    protected void despues() throws Exception {
-    }
-
-    // --- Ciclo Principal JADE ---
+    protected abstract void despues() throws Exception;
 
     @Override
     public void action() {
         try {
-            // Comprobamos si el run continúa activo antes de percibir
-            if (entorno.getEstadoActual() != null && !entorno.getEstadoActual().isActivo()) {
-                terminado = true;
-                return;
-            }
-
             antes();
             if (terminado) {
                 return;
@@ -73,19 +56,12 @@ public abstract class BucleAgentico<S extends Sensor, A extends Accion> extends 
 
             // 1. Percibir
             S sensores = entorno.leerSensores();
-            if (!entorno.getEstadoActual().isActivo()) {
-                terminado = true;
-                return;
-            }
 
             // 2. Decidir
             A accion = politica.aplicar(sensores);
 
             // 3. Actuar
-            EstadoControl nuevoEstado = entorno.ejecutarAccion(accion);
-            if (!nuevoEstado.isActivo()) {
-                terminado = true;
-            }
+            entorno.ejecutarAccion(accion);
 
             despues();
 
@@ -96,22 +72,11 @@ public abstract class BucleAgentico<S extends Sensor, A extends Accion> extends 
     }
 
     /**
-     * Gestiona las excepciones producidas durante la ejecución del bucle, distinguiendo
-     * entre la finalización oficial del run por DBA Lab y errores inesperados.
+     * Gestiona excepciones producidas durante la ejecución del bucle ante fallos inesperados.
      */
     protected void manejarError(Exception e) {
-        EstadoControl estado = (entorno != null) ? entorno.getEstadoActual() : null;
-
-        if (estado != null && !estado.isActivo()
-                && estado.runStatus() != EstadoControl.RunStatus.UNKNOWN) {
-
-            System.out.println("Ejecución finalizada: " + estado.runStatus()
-                    + " | Motivo: " + estado.reasonCode());
-
-        } else {
-            System.err.println("Error durante la ejecución del agente: " + e.getMessage());
-            e.printStackTrace();
-        }
+        System.err.println("Error durante la ejecución del agente: " + e.getMessage());
+        e.printStackTrace();
     }
 
     @Override
@@ -121,6 +86,8 @@ public abstract class BucleAgentico<S extends Sensor, A extends Accion> extends 
 
     @Override
     public int onEnd() {
+        // Notificamos el estado de finalización oficial al visualizador si está disponible
+        entorno.getEstadoControl().ifPresent(estado -> entorno.getVisualizador().mostrarFin(estado));
         myAgent.doDelete();
         return 0;
     }

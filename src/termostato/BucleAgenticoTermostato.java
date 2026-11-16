@@ -7,7 +7,8 @@ import jade.core.Agent;
 
 /**
  * Bucle agéntico específico para el termostato.
- * Reutiliza el ciclo de vida del bucle agéntico base.
+ * Reutiliza el ciclo canónico de BucleAgentico e implementa antes() y despues()
+ * para comprobar el estado de actividad del entorno.
  */
 public class BucleAgenticoTermostato extends BucleAgentico<SensoresTermostato, AccionTermostato> {
 
@@ -15,8 +16,20 @@ public class BucleAgenticoTermostato extends BucleAgentico<SensoresTermostato, A
             Agent agente,
             Entorno<SensoresTermostato, AccionTermostato> entorno,
             Politica<SensoresTermostato, AccionTermostato> politica) {
-        super(agente);
-        this.entorno = entorno;
-        this.politica = politica;
+        super(agente, entorno, politica);
+    }
+
+    @Override
+    protected void antes() {
+        if (!entorno.isActivo()) {
+            terminado = true;
+        }
+    }
+
+    @Override
+    protected void despues() {
+        if (!entorno.isActivo()) {
+            terminado = true;
+        }
     }
 }

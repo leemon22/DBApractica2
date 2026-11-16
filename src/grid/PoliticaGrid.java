@@ -1,17 +1,17 @@
 package grid;
 
 import base.Politica;
+import java.util.Objects;
 
-// Política de navegación de Grid: Bug0 con progreso y elección dinámica de mano (Tema 2).
-//
-// Máquina de dos modos:
-// - ACERCAMIENTO: moverse a la primera dirección libre (orden N, E, S, O) que reduce la
-//   distancia Manhattan al objetivo.
-// - SEGUIMIENTO: si ninguna dirección que acerca está libre, rodear el obstáculo con una mano
-//   hasta cumplir la condición de salida (criterio lateral, ver debeSalir).
-//
-// La política guarda estado entre llamadas (modo, orientación, mano y d0), así que se necesita
-// una instancia nueva por cada run.
+/**
+ * Política de navegación para el entorno Grid basada en Bug0 con progreso y elección dinámica de mano.
+ * <p>
+ * Implementa una máquina de dos modos:
+ * <ul>
+ *   <li><b>ACERCAMIENTO:</b> avanza hacia la primera celda libre (en orden N, E, S, O) que reduce la distancia Manhattan.</li>
+ *   <li><b>SEGUIMIENTO:</b> si el camino óptimo está bloqueado, rodea el obstáculo siguiendo el muro hasta cumplir la condición de salida.</li>
+ * </ul>
+ */
 public class PoliticaGrid implements Politica<SensoresGrid, Direccion> {
 
     private enum Modo {
@@ -34,13 +34,14 @@ public class PoliticaGrid implements Politica<SensoresGrid, Direccion> {
 
     @Override
     public Direccion aplicar(SensoresGrid sensores) {
+        Objects.requireNonNull(sensores, "Los sensores de Grid no pueden ser nulos");
+
         if (sensores.enObjetivo()) {
             throw new IllegalStateException("El agente ya está en el objetivo " + sensores.objetivo());
         }
 
         if (modo == Modo.SEGUIMIENTO && debeSalir(sensores)) {
             modo = Modo.ACERCAMIENTO;
-            System.out.println("Fin del rodeo en " + sensores.posicion());
         }
 
         Direccion direccion = (modo == Modo.ACERCAMIENTO)
@@ -48,7 +49,6 @@ public class PoliticaGrid implements Politica<SensoresGrid, Direccion> {
                 : seguirMuro(sensores);
 
         // Salvaguarda: moverse hacia un bumper a true termina el run, así que nunca se envía.
-        // Los métodos anteriores solo eligen direcciones libres; si esto salta, es un error nuestro.
         if (sensores.bloqueado(direccion)) {
             throw new IllegalStateException(
                     "La política eligió " + direccion + " estando bloqueada en " + sensores.posicion());
@@ -72,7 +72,7 @@ public class PoliticaGrid implements Politica<SensoresGrid, Direccion> {
 
     // Elección dinámica de mano: de los dos giros laterales respecto a la intención bloqueada,
     // se elige el libre cuya celda queda más cerca del objetivo. En empate, mano derecha (girar a
-    // la izquierda), que es la preferencia por defecto del Tema 2.
+    // la izquierda), que es la preferencia por defecto de la heurística.
     private Direccion iniciarSeguimiento(SensoresGrid sensores) {
         Direccion intencion = mejorMovimiento(sensores);
         Direccion giroIzquierda = intencion.izquierda(); // deja el muro a la derecha
@@ -88,15 +88,13 @@ public class PoliticaGrid implements Politica<SensoresGrid, Direccion> {
         } else if (sensores.libre(giroDerecha)) {
             elegida = giroDerecha;
         } else {
-            // Callejón: solo queda volver atrás. Se rodea con la mano por defecto.
+            // Callejón sin salida: solo queda volver atrás. Se rodea con la mano por defecto.
             elegida = intencion.retroceso();
         }
 
         mano = (elegida == giroDerecha) ? Mano.IZQUIERDA : Mano.DERECHA;
         d0 = sensores.distanciaAlObjetivo();
         modo = Modo.SEGUIMIENTO;
-        System.out.println("Inicio de rodeo en " + sensores.posicion()
-                + " | bloqueado " + intencion + " | mano " + mano + " | d0 = " + d0);
         return elegida;
     }
 
@@ -117,10 +115,10 @@ public class PoliticaGrid implements Politica<SensoresGrid, Direccion> {
         throw new IllegalStateException("Las cuatro direcciones están bloqueadas en " + sensores.posicion());
     }
 
-    // Condición de salida (criterio lateral, context.md sección 7.2):
-    // 1. progreso: más cerca del objetivo que al empezar el rodeo (h < d0);
-    // 2. el mejor movimiento de acercamiento está libre;
-    // 3. el objetivo queda en el lado libre, el contrario a la mano que toca el muro.
+    // Condición de salida (criterio lateral del algoritmo Bug0 con progreso):
+    // 1. Progreso: más cerca del objetivo que al empezar el rodeo actual (h < d0).
+    // 2. El mejor movimiento de acercamiento hacia el objetivo está libre.
+    // 3. El objetivo queda en el lado libre, el contrario a la mano que toca el muro.
     private boolean debeSalir(SensoresGrid sensores) {
         if (sensores.distanciaAlObjetivo() >= d0) {
             return false;

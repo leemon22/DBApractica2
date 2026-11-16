@@ -1,26 +1,16 @@
 package base;
 
-import com.google.gson.JsonObject;
+import java.util.Optional;
 
 /**
  * Encapsula los datos oficiales del bloque "control" que devuelve la API de DBA Lab.
+ * Representa el estado del ciclo de vida de la ejecución de forma desacoplada de la infraestructura HTTP/JSON.
+ *
+ * @param runId      identificador numérico de la ejecución en curso
+ * @param runStatus  estado del ciclo de vida (ACTIVE, SUCCEEDED, FAILED, etc.)
+ * @param reasonCode motivo oficial de finalización o rechazo (puede ser nulo)
  */
 public record EstadoControl(String runId, RunStatus runStatus, String reasonCode) {
-
-    /**
-     * Construye un EstadoControl directamente a partir del objeto JSON "control" recibido de DBA Lab.
-     *
-     * @param control bloque JSON de control
-     */
-    public EstadoControl(JsonObject control) {
-        this(
-                control.get("runId").getAsString(),
-                parsearEstado(control.get("runStatus").getAsString()),
-                control.has("reasonCode") && !control.get("reasonCode").isJsonNull()
-                        ? control.get("reasonCode").getAsString()
-                        : null
-        );
-    }
 
     /**
      * Comprueba si la ejecución sigue en curso y puede recibir más acciones.
@@ -32,8 +22,20 @@ public record EstadoControl(String runId, RunStatus runStatus, String reasonCode
     }
 
     /**
-     * Traduce el runStatus de la API. Si el servidor devuelve un valor desconocido,
-     * se asigna UNKNOWN para detener el bucle con seguridad.
+     * Devuelve el motivo de cierre o rechazo envuelto en un {@link Optional}.
+     *
+     * @return Optional con el reasonCode o vacío si no se especificó motivo
+     */
+    public Optional<String> motivo() {
+        return Optional.ofNullable(reasonCode);
+    }
+
+    /**
+     * Traduce el texto del estado devuelto por el servidor al enumerado {@link RunStatus}.
+     * Si el servidor devuelve un valor desconocido o nulo, se asigna UNKNOWN para detener el bucle con seguridad.
+     *
+     * @param estado cadena con el nombre del estado recibido de la API
+     * @return RunStatus correspondiente o UNKNOWN
      */
     public static RunStatus parsearEstado(String estado) {
         if (estado == null) {
@@ -42,7 +44,7 @@ public record EstadoControl(String runId, RunStatus runStatus, String reasonCode
         try {
             return RunStatus.valueOf(estado);
         } catch (IllegalArgumentException e) {
-            System.err.println("runStatus desconocido recibido: " + estado);
+            System.err.println("Aviso: runStatus desconocido recibido de DBA Lab: " + estado);
             return RunStatus.UNKNOWN;
         }
     }

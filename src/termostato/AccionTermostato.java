@@ -3,25 +3,11 @@ package termostato;
 import base.Accion;
 
 /**
- * Acciones del termostato con su código oficial en la API de DBA Lab.
+ * Acciones semánticas del agente termostato.
+ * Representa la decisión de encender o apagar la refrigeración,
+ * completamente desacoplada de los códigos y cadenas de red de la API.
  */
 public enum AccionTermostato implements Accion {
-
-    ON("thermostat.refrigeration.on"),
-    OFF("thermostat.refrigeration.off");
-
-    private final String codigo;
-
-    AccionTermostato(String codigo) {
-        this.codigo = codigo;
-    }
-
-    @Override
-    public String getCodigoAccion() {
-        return codigo;
-    }
-
-    public String getCodigo() {
-        return codigo;
-    }
+    ON,
+    OFF
 }

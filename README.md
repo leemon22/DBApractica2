@@ -108,12 +108,12 @@ classDiagram
         }
         class ClienteHttpDba {
             +setTiempoEsperaMs(ms)
-            +getRetos() JsonObject
-            +iniciarRun(challengeId) JsonObject
-            +enviarPercepcion(runId, sensorId) JsonObject
-            +enviarAccion(runId, actionCode) JsonObject
-            +consultarEstado(runId) JsonObject
-            +cerrarRun(runId) JsonObject
+            +getRetos() List~InfoReto~
+            +iniciarRun(challengeId) EstadoControl
+            +consultarSensor(runId, sensorId) LecturaSensor
+            +enviarAccion(runId, actionCode) RespuestaAccion
+            +consultarEstado(runId) EstadoControl
+            +cerrarRun(runId) EstadoControl
         }
         class EstadoControl {
             <<record>>
@@ -121,7 +121,6 @@ classDiagram
             +runStatus
             +reasonCode
             +isActivo()
-            +EstadoControl(JsonObject)
         }
         class ComponentesAgente~S,A~ {
             <<record>>
@@ -129,12 +128,21 @@ classDiagram
             +bucle
         }
         class Entorno~S,A~ {
-            <<interface>>
-            +iniciarRun()
-            +leerSensores() S
-            +ejecutarAccion(A) EstadoControl
-            +getEstadoActual() EstadoControl
+            <<abstract>>
+            +iniciarRun()*
+            +leerSensores()* S
+            +ejecutarAccion(A)*
+            +isActivo() boolean
+            +getEstadoControl() Optional~EstadoControl~
             +cerrarRun()
+        }
+        class Visualizador~S,A~ {
+            <<interface>>
+            +mostrarInicio(runId, estado)
+            +mostrarPercepcion(S)
+            +mostrarAccion(A, resultado, nuevoEstado)
+            +mostrarFin(estadoFinal)
+            +mostrarMensaje(mensaje)
         }
         class Politica~S,A~ {
             <<interface>>
@@ -148,8 +156,8 @@ classDiagram
         }
         class BucleAgentico~S,A~ {
             <<abstract>>
-            #antes()
-            #despues()
+            #antes()*
+            #despues()*
             +action()
             +done()
         }
@@ -157,6 +165,7 @@ classDiagram
 
     Entorno ..> Sensor : usa S
     Entorno ..> Accion : usa A
+    Entorno o-- Visualizador : notifica
     Politica ..> Sensor : percibe S
     Politica ..> Accion : decide A
     Agente *-- BucleAgentico : ejecuta
@@ -164,8 +173,7 @@ classDiagram
     Agente ..> ComponentesAgente : recibe de iniciar()
     BucleAgentico --> Entorno : usa
     BucleAgentico --> Politica : usa
-    Entorno ..> EstadoControl : devuelve
-    Entorno ..> ClienteHttpDba : usa
+    Entorno --> ClienteHttpDba : usa
     ClienteHttpDba ..> Configuracion : lee
 ```
 
@@ -196,20 +204,23 @@ Cámara refrigerada. Cada acción aplicada avanza la simulación y puede sufrir 
 
 | Clase | Responsabilidad |
 |---|---|
-| `SensoresTermostato` | *Record* con `temperaturaActual`, `limiteInferior`, `limiteSuperior` y `temperaturaObjetivo`. Implementa `Sensor` y se instancia directamente desde los `JsonObject` de los sensores. |
+| `SensoresTermostato` | *Record* inmutable con `temperaturaActual`, `limiteInferior`, `limiteSuperior` y `temperaturaObjetivo`. Implementa `Sensor` de forma pura, sin dependencias de JSON. |
 | `AccionTermostato` | *Enum* `ON`/`OFF` que implementa `Accion` con sus códigos de acción en la API. |
-| `EntornoTermostato` | Implementa `Entorno<SensoresTermostato, AccionTermostato>` sobre DBA Lab. Valida sensores/acciones, inicia el run, lee percepciones y ejecuta acciones comprobando `actionStatus` y `runStatus`. |
+| `VisualizadorTermostato` | Implementa `Visualizador<SensoresTermostato, AccionTermostato>`, formateando percepciones, acciones y estados por consola. |
+| `EntornoTermostato` | Extiende `Entorno<SensoresTermostato, AccionTermostato>` sobre DBA Lab. Valida sensores/acciones, inicia el run, lee percepciones y ejecuta acciones delegando la presentación en el visualizador. |
 | `PoliticaTermostato` | Implementa `Politica<SensoresTermostato, AccionTermostato>`: enciende refrigeración si `temperaturaActual >= temperaturaObjetivo`; en caso contrario la apaga. |
 | `AgenteTermostato` | Extiende `base.Agente`, instanciando en `iniciar()` el entorno, la política y el bucle agéntico del termostato. |
-| `BucleAgenticoTermostato` | Extiende `base.BucleAgentico`, comprobando en `antes()` y `despues()` si el run sigue `ACTIVE`. |
+| `BucleAgenticoTermostato` | Extiende `base.BucleAgentico`, comprobando en `antes()` y `despues()` si el entorno sigue activo. |
 
 ```mermaid
 classDiagram
-    EntornoTermostato ..|> Entorno : implementa
+    EntornoTermostato --|> Entorno : extiende
     PoliticaTermostato ..|> Politica : implementa
+    VisualizadorTermostato ..|> Visualizador : implementa
     AgenteTermostato --|> Agente : extiende
     BucleAgenticoTermostato --|> BucleAgentico : extiende
     EntornoTermostato --> ClienteHttpDba : usa
+    EntornoTermostato o-- VisualizadorTermostato : notifica
     EntornoTermostato ..> SensoresTermostato : crea
     PoliticaTermostato ..> SensoresTermostato : lee
     PoliticaTermostato ..> AccionTermostato : decide
@@ -221,6 +232,7 @@ classDiagram
 |---|---|---:|
 | 368 | `SUCCEEDED` | 10 de 10 |
 | 382 | `SUCCEEDED` | 10 de 10 |
+| 1686 | `SUCCEEDED` | 10 de 10 |
 
 ---
 

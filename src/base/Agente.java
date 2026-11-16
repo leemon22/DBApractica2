@@ -6,8 +6,8 @@ import jade.core.Agent;
  * Clase base abstracta para agentes JADE situados en DBA Lab.
  * Coordina la inicialización de componentes, el inicio del run y el cierre controlado.
  *
- * @param <S> tipo de percepciones (debe implementar Sensor)
- * @param <A> tipo de acciones (debe implementar Accion)
+ * @param <S> tipo de percepciones (debe implementar {@link Sensor})
+ * @param <A> tipo de acciones (debe implementar {@link Accion})
  */
 public abstract class Agente<S extends Sensor, A extends Accion> extends Agent {
 
