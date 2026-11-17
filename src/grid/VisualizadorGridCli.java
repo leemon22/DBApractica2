@@ -30,6 +30,7 @@ public class VisualizadorGridCli implements Visualizador<SensoresGrid, Direccion
     private final Set<Posicion> rastro = new HashSet<>();
     private Posicion posicionObjetivo;
     private Posicion posicionAgente;
+    private InfoReto retoActual;
 
     @Override
     public InfoReto seleccionarReto(List<InfoReto> retosGrid) {
@@ -64,11 +65,14 @@ public class VisualizadorGridCli implements Visualizador<SensoresGrid, Direccion
             }
         }
 
-        return retosGrid.get(seleccion - 1);
+        InfoReto seleccionado = retosGrid.get(seleccion - 1);
+        this.retoActual = seleccionado;
+        return seleccionado;
     }
 
     @Override
     public void mostrarRetoEncontrado(InfoReto reto) {
+        this.retoActual = reto;
         System.out.println("Reto Grid seleccionado: " + reto.id() + " (" + reto.environmentType() + ")");
     }
 
@@ -96,6 +100,9 @@ public class VisualizadorGridCli implements Visualizador<SensoresGrid, Direccion
 
         // Trazas de métricas del paso
         System.out.println("\n--- PERCEPCIÓN DEL AGENTE ---");
+        if (retoActual != null) {
+            System.out.printf("Reto actual: ID %d (%s)%n", retoActual.id(), retoActual.environmentType());
+        }
         System.out.printf("Posición: %s | Objetivo: %s | Distancia: %d celdas%n",
                 posicionAgente, posicionObjetivo, sensores.distanciaAlObjetivo());
         System.out.printf("Energía restante: %d (%s)%n", sensores.energiaRestante(), sensores.modoEnergia());
@@ -119,7 +126,7 @@ public class VisualizadorGridCli implements Visualizador<SensoresGrid, Direccion
     @Override
     public void mostrarFin(EstadoControl estadoFinal) {
         System.out.println("\n========================================");
-        System.out.println("FIN DE LA EJECUCIÓN GRID: " + estadoFinal.runStatus());
+        System.out.println("FIN DE LA EJECUCIÓN GRID" + (retoActual != null ? " (Reto ID: " + retoActual.id() + ")" : "") + ": " + estadoFinal.runStatus());
         estadoFinal.motivo().ifPresent(motivo -> System.out.println("Motivo oficial: " + motivo));
         System.out.println("Total de celdas descubiertas: " + celdasConocidas.size());
         System.out.println("Longitud del recorrido: " + rastro.size() + " pasos");
@@ -152,7 +159,7 @@ public class VisualizadorGridCli implements Visualizador<SensoresGrid, Direccion
         int yInicio = Math.max(0, minY - 1);
         int yFin = maxY + 1;
 
-        System.out.println("\nMapa explorado:");
+        System.out.println("\nMapa explorado" + (retoActual != null ? " (Reto ID: " + retoActual.id() + ")" : "") + ":");
         // Encabezado con coordenadas X
         System.out.print("    ");
         for (int x = xInicio; x <= xFin; x++) {

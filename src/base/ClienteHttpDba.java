@@ -32,7 +32,7 @@ import java.util.Optional;
 public class ClienteHttpDba {
 
     /** Retardo predeterminado de 500 ms entre peticiones consecutivas para proteger el servidor */
-    public static final long DELAY_PREDETERMINADO_MS = 500;
+    public static final long DELAY_PREDETERMINADO_MS = 50;
 
     private final HttpClient httpClient;
     private final String baseUrl;
