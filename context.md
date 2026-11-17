@@ -38,11 +38,11 @@ La práctica utiliza **Java y JADE** para desarrollar agentes que perciben, deci
 | Integrante | Responsabilidad | Tareas |
 |---|---|---|
 | **Rodrigo** (Coordinación, algo más de carga) | Algoritmo de navegación e integración | `PoliticaGrid` con Bug0 con progreso y elección dinámica de mano (sección 7); integración final; estrategia para la segunda tanda. |
-| **Pedro** | Comunicación con DBA Lab | Run exploratorio para medir el consumo de energía; extraer la lógica común de `EntornoTermostato` a `base.EntornoDba` y comprobar que el termostato sigue dando `SUCCEEDED`; implementar `EntornoGrid`. |
+| **Pedro** | Comunicación con DBA Lab y componentes de Grid | Generalizar la lógica común a `base.Entorno`; verificar que el termostato sigue dando `SUCCEEDED` (verificado en run 1686); implementar `EntornoGrid`, `AgenteGrid`, `BucleAgenticoGrid`, `VisualizadorGridCli` y `LanzadorGrid`. **Hecho.** |
 | **Martín** | Tipos, orientación y salvaguardas | ~~`Posicion`, `SensoresGrid`, `AccionGrid` y enum `Direccion`~~ (los implementó Rodrigo el 10/11, ver 7.3); detección de ciclos; control de energía. |
 | **Cristina** | Simulador, pruebas y vídeo | Simulador local (`Entorno` falso) con los 7 mapas del guion; trazas paso a paso; tabla de resultados por reto; guion del vídeo. |
 
-- Hitos propuestos: **10/11** run exploratorio hecho y `EntornoDba` integrado; **11/11** tipos de Grid y simulador funcionando; **12/11** política resolviendo los 7 mapas en el simulador y después en DBA Lab; **13/11–16/11** segunda tanda; **17/11** código congelado y revisión cruzada (cada integrante explica un módulo ajeno); **18/11** entrega.
+- Hitos propuestos: **10/11** run exploratorio hecho y `base.Entorno` generalizado (**Hecho**); **11/11** tipos de Grid, componentes agénticos y visualizador funcionando (**Hecho**); **12/11** política resolviendo los 7 mapas en el simulador y después en DBA Lab; **13/11–16/11** segunda tanda; **17/11** código congelado y revisión cruzada (cada integrante explica un módulo ajeno); **18/11** entrega.
 - Evitar cambios no consensuados en `base`, porque debe servir para los dos entornos. Antes de integrar cambios, explicarlos al autor del paquete común.
 - Todo integrante debe poder explicar el ciclo JADE, el cliente HTTP, la política, la interpretación de resultados y las decisiones tomadas en la defensa.
 
