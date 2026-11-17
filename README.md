@@ -273,7 +273,7 @@ El detalle (giros relativos, condición de salida, salvaguardas contra ciclos y 
 
 | Clase | Responsabilidad | Responsable | Estado |
 |---|---|---|---|
-| `Direccion` | *Enum* N/E/S/O: desplazamiento (dx, dy), giros relativos, código de acción y campo del *bumper*. Es también la acción semántica del agente. | Rodrigo / Martín | Hecho |
+| `Direccion` | *Enum* N/E/S/O: desplazamiento (dx, dy) y giros relativos. Es la acción semántica pura del agente en la cuadrícula. | Rodrigo / Martín | Hecho |
 | `Posicion` | *Record* (x, y) con distancia Manhattan y movimiento a la vecina. | Rodrigo / Martín | Hecho |
 | `SensoresGrid` | *Record* con posición, objetivo, direcciones bloqueadas y energía. | Rodrigo / Martín | Hecho |
 | `VisualizadorGridCli` | Implementa `Visualizador<SensoresGrid, Direccion>`, mostrando métricas, mapa ASCII autoescalable y selección interactiva de mapas por CLI. | Pedro | Hecho |

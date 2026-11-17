@@ -107,8 +107,8 @@ public class VisualizadorGridCli implements Visualizador<SensoresGrid, Direccion
 
     @Override
     public void mostrarAccion(Direccion accion, String resultado, EstadoControl nuevoEstado) {
-        System.out.printf("Movimiento: %s (%s) | Resultado: %s | Estado: %s%n",
-                accion, accion.codigoAccion(), resultado, nuevoEstado.runStatus());
+        System.out.printf("Movimiento: %s | Resultado: %s | Estado: %s%n",
+                accion, resultado, nuevoEstado.runStatus());
     }
 
     @Override

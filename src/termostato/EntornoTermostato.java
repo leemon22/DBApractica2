@@ -139,26 +139,9 @@ public class EntornoTermostato extends Entorno<SensoresTermostato, AccionTermost
     // --- Validación de Capacidades del Reto ---
 
     private void validarCapacidades(InfoReto reto) {
-        List<String> sensoresNecesarios = List.of(
-                SENSOR_TEMPERATURA,
-                SENSOR_LIMITES,
-                SENSOR_OBJETIVO
+        reto.validarCapacidades(
+                List.of(SENSOR_TEMPERATURA, SENSOR_LIMITES, SENSOR_OBJETIVO),
+                List.of(ACCION_REFRIGERACION_ON, ACCION_REFRIGERACION_OFF)
         );
-        List<String> accionesNecesarias = List.of(
-                ACCION_REFRIGERACION_ON,
-                ACCION_REFRIGERACION_OFF
-        );
-
-        for (String sensor : sensoresNecesarios) {
-            if (!reto.contieneSensor(sensor)) {
-                throw new IllegalStateException("Sensor requerido no disponible en el reto: " + sensor);
-            }
-        }
-
-        for (String accion : accionesNecesarias) {
-            if (!reto.contieneAccion(accion)) {
-                throw new IllegalStateException("Acción requerida no disponible en el reto: " + accion);
-            }
-        }
     }
 }

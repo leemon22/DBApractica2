@@ -10,13 +10,14 @@ import base.Visualizador;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
 /**
  * Entorno específico para los retos del bloque Grid (2D).
- * Gestiona el descubrimiento del mapa, la validación de sensores y acciones,
+ * Gestiona el descubrimiento del mapa, la validación de capacidades anunciadas,
  * el arranque del run, la lectura de sensores (posición, bumpers, objetivo y energía)
  * y el envío de movimientos cardinales a DBA Lab.
  * Delega la presentación y la selección interactiva de mapas en el {@link Visualizador}.
@@ -28,6 +29,21 @@ public class EntornoGrid extends Entorno<SensoresGrid, Direccion> {
     public static final String SENSOR_BUMPERS = "grid.bumpers";
     public static final String SENSOR_TARGET = "grid.target";
     public static final String SENSOR_ENERGY = "grid.energy";
+
+    // Traducción de acciones semánticas y sensores a protocolos de red de DBA Lab
+    private static final Map<Direccion, String> MAPA_ACCIONES = Map.of(
+            Direccion.NORTE, "grid.move.north",
+            Direccion.ESTE,  "grid.move.east",
+            Direccion.SUR,   "grid.move.south",
+            Direccion.OESTE, "grid.move.west"
+    );
+
+    private static final Map<Direccion, String> MAPA_BUMPERS = Map.of(
+            Direccion.NORTE, "north",
+            Direccion.ESTE,  "east",
+            Direccion.SUR,   "south",
+            Direccion.OESTE, "west"
+    );
 
     // Objetivo cacheado durante el run (invariante para un mapa determinado)
     private Posicion objetivo;
@@ -80,7 +96,9 @@ public class EntornoGrid extends Entorno<SensoresGrid, Direccion> {
 
     @Override
     public void iniciarRun() throws IOException, InterruptedException {
-        InfoReto reto = seleccionarRetoGrid();
+        InfoReto reto = seleccionarReto("GRID_2D", challengeIdPreferido)
+                .orElseThrow(() -> new IllegalStateException("No hay retos de tipo GRID_2D disponibles en DBA Lab"));
+
         validarCapacidades(reto);
 
         visualizador.mostrarRetoEncontrado(reto);
@@ -106,7 +124,7 @@ public class EntornoGrid extends Entorno<SensoresGrid, Direccion> {
         this.estadoActual = lecturaBumpers.control();
         Set<Direccion> bloqueadas = new HashSet<>();
         for (Direccion d : Direccion.values()) {
-            if (lecturaBumpers.getBoolean(d.campoBumper())) {
+            if (lecturaBumpers.getBoolean(MAPA_BUMPERS.get(d))) {
                 bloqueadas.add(d);
             }
         }
@@ -132,7 +150,8 @@ public class EntornoGrid extends Entorno<SensoresGrid, Direccion> {
 
     @Override
     public void ejecutarAccion(Direccion accion) throws IOException, InterruptedException {
-        RespuestaAccion respuesta = cliente.enviarAccion(runId, accion.codigoAccion());
+        String codigoAccion = MAPA_ACCIONES.get(accion);
+        RespuestaAccion respuesta = cliente.enviarAccion(runId, codigoAccion);
         this.estadoActual = respuesta.control();
 
         visualizador.mostrarAccion(accion, respuesta.actionStatus(), estadoActual);
@@ -150,55 +169,12 @@ public class EntornoGrid extends Entorno<SensoresGrid, Direccion> {
         return ultimosSensores != null && ultimosSensores.enObjetivo();
     }
 
-    // --- Selección y Validación de Retos Grid ---
-
-    private InfoReto seleccionarRetoGrid() throws IOException, InterruptedException {
-        List<InfoReto> retos = cliente.getRetos();
-        List<InfoReto> retosGrid = retos.stream()
-                .filter(r -> "GRID_2D".equalsIgnoreCase(r.environmentType()))
-                .toList();
-
-        if (retosGrid.isEmpty()) {
-            throw new IllegalStateException("No se han encontrado retos de tipo GRID_2D disponibles en DBA Lab.");
-        }
-
-        // Si se configuró un ID preferido (p. ej. en config.properties), intentamos usarlo
-        if (challengeIdPreferido.isPresent()) {
-            long preferido = challengeIdPreferido.get();
-            return retosGrid.stream()
-                    .filter(r -> r.id() == preferido)
-                    .findFirst()
-                    .orElseThrow(() -> new IllegalStateException(
-                            "El reto GRID_2D configurado (" + preferido + ") no está disponible en el servidor."));
-        }
-
-        // Si solo hay un mapa disponible, se selecciona directamente
-        if (retosGrid.size() == 1) {
-            return retosGrid.get(0);
-        }
-
-        // Si hay varios mapas y no hay reto fijado en la configuración, delegamos la selección en el visualizador
-        return visualizador.seleccionarReto(retosGrid);
-    }
+    // --- Validación de Capacidades del Reto ---
 
     private void validarCapacidades(InfoReto reto) {
-        List<String> sensoresNecesarios = List.of(
-                SENSOR_POSITION,
-                SENSOR_BUMPERS,
-                SENSOR_TARGET,
-                SENSOR_ENERGY
+        reto.validarCapacidades(
+                List.of(SENSOR_POSITION, SENSOR_BUMPERS, SENSOR_TARGET, SENSOR_ENERGY),
+                MAPA_ACCIONES.values()
         );
-
-        for (String sensor : sensoresNecesarios) {
-            if (!reto.contieneSensor(sensor)) {
-                throw new IllegalStateException("Sensor requerido no disponible en el reto: " + sensor);
-            }
-        }
-
-        for (Direccion dir : Direccion.values()) {
-            if (!reto.contieneAccion(dir.codigoAccion())) {
-                throw new IllegalStateException("Acción requerida no disponible en el reto: " + dir.codigoAccion());
-            }
-        }
     }
 }

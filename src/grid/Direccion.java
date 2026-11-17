@@ -11,24 +11,20 @@ import base.Accion;
  */
 public enum Direccion implements Accion {
 
-    NORTE(0, -1, "grid.move.north", "north"),
-    ESTE(1, 0, "grid.move.east", "east"),
-    SUR(0, 1, "grid.move.south", "south"),
-    OESTE(-1, 0, "grid.move.west", "west");
+    NORTE(0, -1),
+    ESTE(1, 0),
+    SUR(0, 1),
+    OESTE(-1, 0);
 
     // Matriz de valores en caché para evitar la clonación continua del array interno en cada llamada
     private static final Direccion[] VALORES = values();
 
     private final int dx;
     private final int dy;
-    private final String codigoAccion;
-    private final String campoBumper;
 
-    Direccion(int dx, int dy, String codigoAccion, String campoBumper) {
+    Direccion(int dx, int dy) {
         this.dx = dx;
         this.dy = dy;
-        this.codigoAccion = codigoAccion;
-        this.campoBumper = campoBumper;
     }
 
     /**
@@ -43,20 +39,6 @@ public enum Direccion implements Accion {
      */
     public int dy() {
         return dy;
-    }
-
-    /**
-     * Código oficial de la acción para enviar a la API de DBA Lab.
-     */
-    public String codigoAccion() {
-        return codigoAccion;
-    }
-
-    /**
-     * Nombre del campo correspondiente en el sensor {@code grid.bumpers}.
-     */
-    public String campoBumper() {
-        return campoBumper;
     }
 
     // --- Cálculo de giros del agente ---

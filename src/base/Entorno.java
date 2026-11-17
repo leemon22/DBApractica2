@@ -65,32 +65,47 @@ public abstract class Entorno<S extends Sensor, A extends Accion> {
 
     /**
      * Selecciona un reto de DBA Lab usando {@link Optional}.
-     * Si se proporciona un identificador de reto preferido, busca dicho ID; de lo contrario,
-     * selecciona el primer reto compatible con el tipo de entorno indicado.
+     * Si se proporciona un identificador de reto preferido, busca dicho ID y comprueba que exista.
+     * Si no se especifica reto preferido:
+     * <ul>
+     *   <li>Si hay un único reto compatible con el tipo solicitado, se selecciona directamente.</li>
+     *   <li>Si hay múltiples retos compatibles, delega la selección en {@link Visualizador#seleccionarReto(List)}.</li>
+     * </ul>
      *
      * @param tipoEntorno          tipo de entorno buscado (p. ej. "THERMOSTAT", "GRID_2D")
      * @param challengeIdPreferido ID numérico explícito opcional (p. ej. de config.properties)
-     * @return Optional con el InfoReto encontrado, o vacío si no hay coincidencias
+     * @return Optional con el InfoReto seleccionado, o vacío si no hay coincidencias
      * @throws IOException          si ocurre un fallo de red
      * @throws InterruptedException si se interrumpe la comunicación
      */
     protected Optional<InfoReto> seleccionarReto(String tipoEntorno, Optional<Long> challengeIdPreferido)
             throws IOException, InterruptedException {
         List<InfoReto> retos = cliente.getRetos();
+        List<InfoReto> compatibles = retos.stream()
+                .filter(r -> tipoEntorno.equalsIgnoreCase(r.environmentType()))
+                .toList();
+
+        if (compatibles.isEmpty()) {
+            return Optional.empty();
+        }
 
         if (challengeIdPreferido.isPresent()) {
             long preferido = challengeIdPreferido.get();
-            Optional<InfoReto> especifico = retos.stream()
+            Optional<InfoReto> especifico = compatibles.stream()
                     .filter(r -> r.id() == preferido)
                     .findFirst();
             if (especifico.isPresent()) {
                 return especifico;
             }
+            throw new IllegalStateException("El reto configurado (" + preferido + ") no está disponible en el servidor.");
         }
 
-        return retos.stream()
-                .filter(r -> tipoEntorno.equalsIgnoreCase(r.environmentType()))
-                .findFirst();
+        if (compatibles.size() == 1) {
+            return Optional.of(compatibles.get(0));
+        }
+
+        // Si hay múltiples retos compatibles y no hay ID fijado, delegamos en el visualizador (CLI, GUI o default)
+        return Optional.of(visualizador.seleccionarReto(compatibles));
     }
 
     /**

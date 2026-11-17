@@ -305,7 +305,7 @@ Con el criterio lateral, el recorrido supera a la distancia Manhattan en 0,5–7
 | Clase | Responsabilidad | Responsable |
 |---|---|---|
 | `Posicion` | *Record* `x`, `y`; `distanciaManhattan(otra)` y `mover(direccion)`. **Hecho.** | Rodrigo |
-| `Direccion` | Enum `NORTE`, `ESTE`, `SUR`, `OESTE` (en ese orden: sentido horario y desempate del Tema 2) con `dx()`, `dy()` (norte = `dy -1`), `izquierda()`, `derecha()`, `retroceso()`, `codigoAccion()` (`grid.move.*`) y `campoBumper()` (`north`…). **Hecho.** | Rodrigo |
+| `Direccion` | Enum `NORTE`, `ESTE`, `SUR`, `OESTE` (en ese orden: sentido horario y desempate del Tema 2) con `dx()`, `dy()` (norte = `dy -1`), `izquierda()`, `derecha()` y `retroceso()`. Desacoplada del protocolo de red; la traducción a códigos REST y campos de bumpers reside en `EntornoGrid`. **Hecho.** | Rodrigo |
 | `SensoresGrid` | *Record* `posicion`, `objetivo`, `Set<Direccion> bloqueadas` (bumpers a `true`, copia inmutable), `modoEnergia`, `energiaRestante`; `bloqueado(d)`, `libre(d)`, `distanciaAlObjetivo()`, `enObjetivo()`. **Hecho.** | Rodrigo |
 | ~~`AccionGrid`~~ | **[DECISIÓN GRUPO, 10/11]** No se crea: la acción es la propia `Direccion` (un movimiento *es* una dirección y ya conoce su código). | — |
 | `EntornoGrid` | Extiende `Entorno<SensoresGrid, Direccion>` sobre DBA Lab. Gestiona la selección del mapa/reto, lee el objetivo una sola vez y consulta posición, bumpers y energía. Ejecuta movimientos cardinales y delega la presentación en el visualizador. **Hecho.** | Pedro |

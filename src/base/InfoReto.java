@@ -42,4 +42,28 @@ public record InfoReto(
     public boolean contieneAccion(String actionCode) {
         return actionCodes.contains(actionCode);
     }
+
+    /**
+     * Valida que el reto anuncie todos los sensores y acciones requeridos.
+     *
+     * @param sensoresNecesarios colección de identificadores de sensores imprescindibles
+     * @param accionesNecesarias colección de identificadores de acciones imprescindibles
+     * @throws IllegalStateException si falta algún sensor o acción obligatoria
+     */
+    public void validarCapacidades(Iterable<String> sensoresNecesarios, Iterable<String> accionesNecesarias) {
+        if (sensoresNecesarios != null) {
+            for (String sensor : sensoresNecesarios) {
+                if (!contieneSensor(sensor)) {
+                    throw new IllegalStateException("Sensor requerido no disponible en el reto " + id + ": " + sensor);
+                }
+            }
+        }
+        if (accionesNecesarias != null) {
+            for (String accion : accionesNecesarias) {
+                if (!contieneAccion(accion)) {
+                    throw new IllegalStateException("Acción requerida no disponible en el reto " + id + ": " + accion);
+                }
+            }
+        }
+    }
 }
