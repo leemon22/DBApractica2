@@ -36,7 +36,7 @@ public class EntornoTermostato extends Entorno<SensoresTermostato, AccionTermost
      * Constructor por defecto: lee configuración de "config.properties" y usa la vista de consola.
      */
     public EntornoTermostato() {
-        this(new ClienteHttpDba(), new VisualizadorTermostato(), new Configuracion("config.properties").getChallengeId());
+        this(new ClienteHttpDba(), new VisualizadorTermostato(), new Configuracion().getChallengeId());
     }
 
     /**

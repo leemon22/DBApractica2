@@ -45,7 +45,7 @@ public class ClienteHttpDba {
      * Constructor por defecto: lee la URL y el token desde "config.properties".
      */
     public ClienteHttpDba() {
-        this(new Configuracion("config.properties"));
+        this(new Configuracion());
     }
 
     /**

@@ -61,4 +61,19 @@ public interface Visualizador<S extends Sensor, A extends Accion> {
      */
     default void mostrarMensaje(String mensaje) {
     }
+
+    /**
+     * Solicita al usuario la selección de un reto cuando existen múltiples alternativas disponibles.
+     * Las implementaciones interactivas (por consola o interfaz gráfica) pueden solicitar la elección al usuario;
+     * la implementación por defecto selecciona el primer reto de la lista.
+     *
+     * @param retos lista de retos compatibles disponibles
+     * @return reto seleccionado
+     */
+    default InfoReto seleccionarReto(java.util.List<InfoReto> retos) {
+        if (retos == null || retos.isEmpty()) {
+            throw new IllegalArgumentException("La lista de retos no puede ser nula ni vacía");
+        }
+        return retos.get(0);
+    }
 }

@@ -32,7 +32,7 @@ La práctica utiliza **Java y JADE** para desarrollar agentes que perciben, deci
 
 ## 2. Equipo y organización
 
-- **Equipo de cuatro personas.** Un compañero propuso y desarrolló inicialmente el paquete `base` reutilizable.
+- **Equipo de cuatro personas.** Rodrigo propuso y desarrolló inicialmente el paquete `base` reutilizable.
 - **[DECISIÓN GRUPO] Reparto de Grid (propuesto el 09/11/2026):**
 
 | Integrante | Responsabilidad | Tareas |
@@ -97,14 +97,18 @@ DBApractica2/
 │   │   ├── SensoresTermostato.java
 │   │   └── VisualizadorTermostato.java
 │   ├── grid/                       # Bloque Grid
+│   │   ├── AgenteGrid.java
+│   │   ├── BucleAgenticoGrid.java
 │   │   ├── Direccion.java
-│   │   ├── Posicion.java
+│   │   ├── EntornoGrid.java
 │   │   ├── PoliticaGrid.java
+│   │   ├── Posicion.java
 │   │   ├── SensoresGrid.java
+│   │   ├── VisualizadorGridCli.java
 │   │   └── package-info.java
 │   └── lanzadores/
-│       ├── LanzadorTermostato.java # es main.class
-│       └── LanzadorGrid.java       # pendiente
+│       ├── LanzadorTermostato.java
+│       └── LanzadorGrid.java
 ├── lib/                           # Dependencias JADE/Gson; revisar tracking
 ├── config.properties              # PRIVADO. Nunca versionar.
 ├── .gitignore
@@ -304,12 +308,14 @@ Con el criterio lateral, el recorrido supera a la distancia Manhattan en 0,5–7
 | `Direccion` | Enum `NORTE`, `ESTE`, `SUR`, `OESTE` (en ese orden: sentido horario y desempate del Tema 2) con `dx()`, `dy()` (norte = `dy -1`), `izquierda()`, `derecha()`, `retroceso()`, `codigoAccion()` (`grid.move.*`) y `campoBumper()` (`north`…). **Hecho.** | Rodrigo |
 | `SensoresGrid` | *Record* `posicion`, `objetivo`, `Set<Direccion> bloqueadas` (bumpers a `true`, copia inmutable), `modoEnergia`, `energiaRestante`; `bloqueado(d)`, `libre(d)`, `distanciaAlObjetivo()`, `enObjetivo()`. **Hecho.** | Rodrigo |
 | ~~`AccionGrid`~~ | **[DECISIÓN GRUPO, 10/11]** No se crea: la acción es la propia `Direccion` (un movimiento *es* una dirección y ya conoce su código). | — |
-| `EntornoDba` (en `base`) | Lógica común de DBA Lab extraída de `EntornoTermostato`. | Pedro |
-| `EntornoGrid` | Implementa `Entorno<SensoresGrid, Direccion>`; lee el objetivo una sola vez. Para los bumpers puede recorrer `Direccion.values()` y leer `campoBumper()`. | Pedro |
+| `EntornoGrid` | Extiende `Entorno<SensoresGrid, Direccion>` sobre DBA Lab. Gestiona la selección del mapa/reto, lee el objetivo una sola vez y consulta posición, bumpers y energía. Ejecuta movimientos cardinales y delega la presentación en el visualizador. **Hecho.** | Pedro |
+| `VisualizadorGridCli` | Implementa `Visualizador<SensoresGrid, Direccion>`, mostrando métricas, mapa ASCII autoescalable con memoria de recorrido y selección interactiva de mapas por CLI. **Hecho.** | Pedro |
+| `AgenteGrid` | Extiende `base.Agente`, instanciando el entorno, política y bucle para Grid sin argumentos de JADE. **Hecho.** | Pedro |
+| `BucleAgenticoGrid` | Extiende `base.BucleAgentico`, gestionando la parada por objetivo alcanzado o fin de run. **Hecho.** | Pedro |
 | `PoliticaGrid` | Implementa `Politica<SensoresGrid, Direccion>` con el algoritmo de 7.2 y la salida por criterio lateral. **Hecho (10/11).** Una instancia por run, porque guarda estado. Probada con un banco local en los 7 mapas y todas las combinaciones de inicio y objetivo (59.462 casos): todos llegan, sin choques, con los mismos recorridos que el modelo en Python. No incluye detección de ciclos ni control de energía (Martín). | Rodrigo |
 | `DetectorCiclos` / control de energía | Salvaguardas de 7.2. | Martín |
 | `SimuladorGrid` | `Entorno` local con los 7 mapas transcritos del guion, para pruebas sin VPN ni runs. | Cristina |
-| `LanzadorGrid` | Punto de entrada del bloque. | Rodrigo (integración) **[POR CONFIRMAR]** |
+| `LanzadorGrid` | Punto de entrada del bloque que arranca JADE e inicia `AgenteGrid`. **Hecho.** | Pedro |
 
 **Observación de diseño:** `BucleAgentico` llama a `leerSensores()` en cada paso. En Grid, leer los cuatro sensores por movimiento puede desperdiciar energía si las lecturas la consumen; `grid.target` no cambia y basta leerlo al iniciar.
 

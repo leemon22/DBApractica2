@@ -73,7 +73,7 @@ La URL **debe terminar en `/api/v1`**: `ClienteHttpDba` le concatena directament
 | Bloque | Clase a ejecutar en NetBeans |
 |---|---|
 | Termostato | `lanzadores.LanzadorTermostato` (clase principal del proyecto) |
-| Grid | `lanzadores.LanzadorGrid` (pendiente) |
+| Grid | `lanzadores.LanzadorGrid` |
 
 Se abre la interfaz de JADE (RMA), se inicia el agente y las percepciones y acciones se muestran por consola.
 
@@ -273,24 +273,28 @@ El detalle (giros relativos, condición de salida, salvaguardas contra ciclos y 
 
 | Clase | Responsabilidad | Responsable | Estado |
 |---|---|---|---|
-| `Direccion` | *Enum* N/E/S/O: desplazamiento (dx, dy), giros relativos, código de acción y campo del *bumper*. Es también la acción del agente. | Rodrigo / Martín | Hecho |
+| `Direccion` | *Enum* N/E/S/O: desplazamiento (dx, dy), giros relativos, código de acción y campo del *bumper*. Es también la acción semántica del agente. | Rodrigo / Martín | Hecho |
 | `Posicion` | *Record* (x, y) con distancia Manhattan y movimiento a la vecina. | Rodrigo / Martín | Hecho |
 | `SensoresGrid` | *Record* con posición, objetivo, direcciones bloqueadas y energía. | Rodrigo / Martín | Hecho |
-| `EntornoDba` (en `base`) | Lógica común de DBA Lab extraída de `EntornoTermostato`. | Pedro | Pendiente |
-| `EntornoGrid` | Implementa `Entorno<SensoresGrid, Direccion>` sobre DBA Lab. | Pedro | Pendiente |
-| `PoliticaGrid` | Implementa `Politica<SensoresGrid, Direccion>` con la máquina de estados ACERCAMIENTO / SEGUIMIENTO y salida por criterio lateral. | Rodrigo | Hecho (probada en simulación) |
-| Detección de ciclos y control de energía | Salvaguardas de la política. | Martín | Pendiente |
+| `VisualizadorGridCli` | Implementa `Visualizador<SensoresGrid, Direccion>`, mostrando métricas, mapa ASCII autoescalable y selección interactiva de mapas por CLI. | Pedro | Hecho |
+| `EntornoGrid` | Extiende `Entorno<SensoresGrid, Direccion>` sobre DBA Lab. Gestiona la selección del mapa/reto, lee percepciones, cachea objetivo y ejecuta movimientos. | Pedro | Hecho |
+| `PoliticaGrid` | Implementa `Politica<SensoresGrid, Direccion>` con la máquina de estados ACERCAMIENTO / SEGUIMIENTO y salida por criterio lateral. | Rodrigo | Hecho |
+| `AgenteGrid` | Extiende `base.Agente`, instanciando el entorno, política y bucle para Grid sin argumentos de JADE. | Pedro | Hecho |
+| `BucleAgenticoGrid` | Extiende `base.BucleAgentico`, gestionando la parada por objetivo alcanzado o fin de run. | Pedro | Hecho |
+| `LanzadorGrid` | Punto de entrada que arranca JADE e inicia `AgenteGrid`. | Pedro | Hecho |
+| Detección de ciclos y control de energía | Salvaguardas adicionales de la política. | Martín | Pendiente |
 | `SimuladorGrid` | `Entorno` local con los 7 mapas del guion, para probar sin VPN ni runs. | Cristina | Pendiente |
-| `LanzadorGrid` | Punto de entrada del bloque. | Rodrigo | Pendiente |
 
 ```mermaid
 classDiagram
-    EntornoGrid ..|> Entorno : implementa
-    SimuladorGrid ..|> Entorno : implementa
+    EntornoGrid --|> Entorno : extiende
     PoliticaGrid ..|> Politica : implementa
+    VisualizadorGridCli ..|> Visualizador : implementa
+    AgenteGrid --|> Agente : extiende
+    BucleAgenticoGrid --|> BucleAgentico : extiende
     EntornoGrid --> ClienteHttpDba : usa
+    EntornoGrid o-- VisualizadorGridCli : notifica
     EntornoGrid ..> SensoresGrid : crea
-    SimuladorGrid ..> SensoresGrid : crea
     SensoresGrid --> Posicion : contiene
     PoliticaGrid ..> SensoresGrid : lee
     PoliticaGrid ..> Direccion : decide
