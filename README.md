@@ -282,8 +282,17 @@ El detalle (giros relativos, condición de salida, salvaguardas contra ciclos y 
 | `AgenteGrid` | Extiende `base.Agente`, instanciando el entorno, política y bucle para Grid sin argumentos de JADE. | Pedro | Hecho |
 | `BucleAgenticoGrid` | Extiende `base.BucleAgentico`, gestionando la parada por objetivo alcanzado o fin de run. | Pedro | Hecho |
 | `LanzadorGrid` | Punto de entrada que arranca JADE e inicia `AgenteGrid`. | Pedro | Hecho |
-| Detección de ciclos y control de energía | Salvaguardas adicionales de la política. | Martín | Pendiente |
+| Detección de ciclos y control de energía | Un cambio de mano por ejecución. Parada ante un nuevo ciclo o agotamiento de energía finita. | Martín | Probado localmente |
 | `SimuladorGrid` | `Entorno` local con los 7 mapas del guion, para probar sin VPN ni runs. | Cristina | Pendiente |
+
+La prueba de la política usa mapas sintéticos y solo necesita el JDK. Desde la raíz del proyecto, en Bash:
+
+```bash
+clases_grid=$(mktemp -d)
+javac -d "$clases_grid" src/base/{Accion,Sensor,Politica}.java \
+  src/grid/{Direccion,Posicion,SensoresGrid,PoliticaGrid}.java test/grid/PoliticaGridPrueba.java
+java -cp "$clases_grid" grid.PoliticaGridPrueba
+```
 
 ```mermaid
 classDiagram

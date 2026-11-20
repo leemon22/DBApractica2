@@ -1,7 +1,9 @@
 package grid;
 
 import base.Politica;
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Política de navegación para el entorno Grid basada en Bug0 con progreso y elección dinámica de mano.
@@ -24,6 +26,17 @@ public class PoliticaGrid implements Politica<SensoresGrid, Direccion> {
         DERECHA
     }
 
+    // El modo es SEGUIMIENTO en todos los estados registrados.
+    private record EstadoSeguimiento(
+            Posicion posicion, Direccion orientacion, Mano mano, int d0, Set<Direccion> bloqueadas) {
+    }
+
+    static final class ParadaNavegacion extends IllegalStateException {
+        ParadaNavegacion(String motivo) {
+            super(motivo);
+        }
+    }
+
     private Modo modo = Modo.ACERCAMIENTO;
     // Dirección del último movimiento realizado. Los giros del seguimiento son relativos a ella.
     private Direccion orientacion = Direccion.NORTE;
@@ -31,6 +44,8 @@ public class PoliticaGrid implements Politica<SensoresGrid, Direccion> {
     private Mano mano = Mano.DERECHA;
     // Distancia al objetivo al empezar el rodeo actual.
     private int d0;
+    private final Set<EstadoSeguimiento> seguimientosVisitados = new HashSet<>();
+    private boolean cambioDeManoIntentado;
 
     @Override
     public Direccion aplicar(SensoresGrid sensores) {
@@ -40,13 +55,18 @@ public class PoliticaGrid implements Politica<SensoresGrid, Direccion> {
             throw new IllegalStateException("El agente ya está en el objetivo " + sensores.objetivo());
         }
 
+        if ("FINITE".equals(sensores.modoEnergia()) && sensores.energiaRestante() <= 0) {
+            throw new ParadaNavegacion("Energía finita agotada en " + sensores.posicion()
+                    + " (restante: " + sensores.energiaRestante() + ")");
+        }
+
         if (modo == Modo.SEGUIMIENTO && debeSalir(sensores)) {
             modo = Modo.ACERCAMIENTO;
         }
 
         Direccion direccion = (modo == Modo.ACERCAMIENTO)
                 ? acercarse(sensores)
-                : seguirMuro(sensores);
+                : seguirMuroConMemoria(sensores);
 
         // Salvaguarda: moverse hacia un bumper a true termina el run, así que nunca se envía.
         if (sensores.bloqueado(direccion)) {
@@ -99,6 +119,28 @@ public class PoliticaGrid implements Politica<SensoresGrid, Direccion> {
     }
 
     // --- SEGUIMIENTO ---
+
+    private Direccion seguirMuroConMemoria(SensoresGrid sensores) {
+        EstadoSeguimiento estado = new EstadoSeguimiento(
+                sensores.posicion(), orientacion, mano, d0, sensores.bloqueadas());
+        // Conservar la memoria entre rodeos también detecta ciclos que alternan ambos modos.
+        if (!seguimientosVisitados.add(estado)) {
+            if (cambioDeManoIntentado) {
+                throw new ParadaNavegacion("Ciclo de navegación tras probar el cambio de mano en "
+                        + sensores.posicion());
+            }
+            cambioDeManoIntentado = true;
+            mano = (mano == Mano.DERECHA) ? Mano.IZQUIERDA : Mano.DERECHA;
+            // Los estados anteriores al cambio no demuestran un ciclo en este nuevo intento.
+            seguimientosVisitados.clear();
+            // Desandar el último paso permite recorrer el contorno en sentido contrario.
+            Direccion regreso = orientacion.retroceso();
+            if (sensores.libre(regreso)) {
+                return regreso;
+            }
+        }
+        return seguirMuro(sensores);
+    }
 
     // Regla de la mano: con mano derecha, prioridad derecha, frente, izquierda y retroceso;
     // con mano izquierda, izquierda, frente, derecha y retroceso.
