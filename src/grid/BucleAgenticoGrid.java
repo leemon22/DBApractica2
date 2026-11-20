@@ -38,4 +38,13 @@ public class BucleAgenticoGrid extends BucleAgentico<SensoresGrid, Direccion> {
             terminado = true;
         }
     }
+
+    @Override
+    protected void manejarError(Exception e) {
+        if (e instanceof PoliticaGrid.ParadaNavegacion) {
+            System.err.println("Navegación Grid detenida: " + e.getMessage());
+            return;
+        }
+        super.manejarError(e);
+    }
 }
