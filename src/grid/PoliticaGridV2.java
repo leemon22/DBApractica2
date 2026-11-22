@@ -174,13 +174,13 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
 
     /**
      * Condición de salida del modo SEGUIMIENTO (despegue del muro):
-     * 1. Progreso respecto al inicio del rodeo (h < d0).
-     * 2. La mano opuesta al muro está libre.
-     * 3. La mano opuesta apunta en dirección a la meta.
-     * 4. La dirección primaria hacia la meta está libre para avanzar en ACERCAMIENTO.
+     * 1. Progreso estricto: la distancia a la meta debe ser menor que en el impacto inicial (h < d0).
+     * 2. Mano opuesta libre: la casilla lateral contraria al muro no debe estar bloqueada.
+     * 3. Orientación hacia la meta: la mano opuesta debe apuntar al semiplano del objetivo.
+     * 4. Avance libre: la dirección primaria hacia la meta debe estar libre para ACERCAMIENTO.
      */
     private boolean debeSalir(SensoresGrid sensores) {
-        // 1. Progreso: la distancia actual debe ser menor que la de inicio del rodeo
+        // 1. Progreso estricto (Bug0): evita bucles infinitos en concavidades
         if (sensores.distanciaAlObjetivo() >= d0) {
             return false;
         }
