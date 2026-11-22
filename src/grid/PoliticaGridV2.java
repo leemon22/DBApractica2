@@ -98,9 +98,14 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
         return iniciarSeguimiento(sensores);
     }
 
-    // Elección dinámica de mano: de los dos giros laterales respecto a la intención bloqueada,
-    // se elige el libre cuya celda queda más cerca del objetivo. En empate, mano derecha (girar a
-    // la izquierda), que es la preferencia por defecto de la heurística.
+    /**
+     * Inicia el modo SEGUIMIENTO al detectar un obstáculo en la dirección primaria:
+     * - Registra la distancia de impacto d0.
+     * - Evalúa las dos alternativas laterales respecto a la dirección bloqueada.
+     * - Elige la celda libre más cercana a la meta y fija la mano correspondiente:
+     *   girar a la derecha implica mano izquierda; girar a la izquierda implica mano derecha.
+     * - En callejón sin salida (ambos lados bloqueados), retrocede con mano derecha.
+     */
     private Direccion iniciarSeguimiento(SensoresGrid sensores) {
         Direccion intencion = mejorMovimiento(sensores);
         Direccion giroIzquierda = intencion.izquierda(); // deja el muro a la derecha
@@ -123,6 +128,7 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
         mano = (elegida == giroDerecha) ? Mano.IZQUIERDA : Mano.DERECHA;
         d0 = sensores.distanciaAlObjetivo();
         modo = Modo.SEGUIMIENTO;
+        cambioDeManoIntentado = false;
         return elegida;
     }
 
@@ -166,22 +172,37 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
         throw new IllegalStateException("Las cuatro direcciones están bloqueadas en " + sensores.posicion());
     }
 
-    // Condición de salida (criterio lateral del algoritmo Bug0 con progreso):
-    // 1. Progreso: más cerca del objetivo que al empezar el rodeo actual (h < d0).
-    // 2. El mejor movimiento de acercamiento hacia el objetivo está libre.
-    // 3. El objetivo queda en el lado libre, el contrario a la mano que toca el muro.
+    /**
+     * Condición de salida del modo SEGUIMIENTO (despegue del muro):
+     * 1. Progreso respecto al inicio del rodeo (h < d0).
+     * 2. La mano opuesta al muro está libre.
+     * 3. La mano opuesta apunta en dirección a la meta.
+     * 4. La dirección primaria hacia la meta está libre para avanzar en ACERCAMIENTO.
+     */
     private boolean debeSalir(SensoresGrid sensores) {
+        // 1. Progreso: la distancia actual debe ser menor que la de inicio del rodeo
         if (sensores.distanciaAlObjetivo() >= d0) {
             return false;
         }
-        if (sensores.bloqueado(mejorMovimiento(sensores))) {
-            return false;
-        }
+
         Direccion o = orientacion();
         Direccion ladoLibre = (mano == Mano.DERECHA) ? o.izquierda() : o.derecha();
+
+        // 2. Mano opuesta libre: la casilla lateral contraria al muro no debe estar bloqueada
+        if (sensores.bloqueado(ladoLibre)) {
+            return false;
+        }
+
+        // 3. Orientación hacia la meta: la mano opuesta debe apuntar al semiplano del objetivo
         int haciaObjetivoX = sensores.objetivo().x() - sensores.posicion().x();
         int haciaObjetivoY = sensores.objetivo().y() - sensores.posicion().y();
-        return haciaObjetivoX * ladoLibre.dx() + haciaObjetivoY * ladoLibre.dy() > 0;
+        if (haciaObjetivoX * ladoLibre.dx() + haciaObjetivoY * ladoLibre.dy() <= 0) {
+            return false;
+        }
+
+        // 4. Avance libre: la dirección primaria hacia la meta debe estar libre para ACERCAMIENTO
+        Direccion primaria = direccionPrimaria(sensores.posicion(), sensores.objetivo());
+        return sensores.libre(primaria);
     }
 
     // --- Utilidades ---
