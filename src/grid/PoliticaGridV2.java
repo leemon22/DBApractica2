@@ -3,6 +3,7 @@ package grid;
 import base.Politica;
 import java.util.HashSet;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -38,8 +39,8 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
     }
 
     private Modo modo = Modo.ACERCAMIENTO;
-    // Dirección del último movimiento realizado. Los giros del seguimiento son relativos a ella.
-    private Direccion orientacion = Direccion.NORTE;
+    // Dirección del último movimiento realizado o dirección inicial hacia el objetivo.
+    private Optional<Direccion> orientacion = Optional.empty();
     // Mano con la que se rodea el obstáculo actual. Solo tiene sentido en SEGUIMIENTO.
     private Mano mano = Mano.DERECHA;
     // Distancia al objetivo al empezar el rodeo actual.
@@ -60,6 +61,11 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
                     + " (restante: " + sensores.energiaRestante() + ")");
         }
 
+        // En el primer ciclo se orienta al agente hacia la meta según el eje dominante
+        if (orientacion.isEmpty()) {
+            orientacion = Optional.of(orientacionInicial(sensores.posicion(), sensores.objetivo()));
+        }
+
         if (modo == Modo.SEGUIMIENTO && debeSalir(sensores)) {
             modo = Modo.ACERCAMIENTO;
         }
@@ -74,7 +80,7 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
                     "La política eligió " + direccion + " estando bloqueada en " + sensores.posicion());
         }
 
-        orientacion = direccion;
+        orientacion = Optional.of(direccion);
         return direccion;
     }
 
@@ -122,7 +128,7 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
 
     private Direccion seguirMuroConMemoria(SensoresGrid sensores) {
         EstadoSeguimiento estado = new EstadoSeguimiento(
-                sensores.posicion(), orientacion, mano, d0, sensores.bloqueadas());
+                sensores.posicion(), orientacion(), mano, d0, sensores.bloqueadas());
         // Conservar la memoria entre rodeos también detecta ciclos que alternan ambos modos.
         if (!seguimientosVisitados.add(estado)) {
             if (cambioDeManoIntentado) {
@@ -134,7 +140,7 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
             // Los estados anteriores al cambio no demuestran un ciclo en este nuevo intento.
             seguimientosVisitados.clear();
             // Desandar el último paso permite recorrer el contorno en sentido contrario.
-            Direccion regreso = orientacion.retroceso();
+            Direccion regreso = orientacion().retroceso();
             if (sensores.libre(regreso)) {
                 return regreso;
             }
@@ -145,9 +151,10 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
     // Regla de la mano: con mano derecha, prioridad derecha, frente, izquierda y retroceso;
     // con mano izquierda, izquierda, frente, derecha y retroceso.
     private Direccion seguirMuro(SensoresGrid sensores) {
+        Direccion o = orientacion();
         Direccion[] prioridad = (mano == Mano.DERECHA)
-                ? new Direccion[]{orientacion.derecha(), orientacion, orientacion.izquierda(), orientacion.retroceso()}
-                : new Direccion[]{orientacion.izquierda(), orientacion, orientacion.derecha(), orientacion.retroceso()};
+                ? new Direccion[]{o.derecha(), o, o.izquierda(), o.retroceso()}
+                : new Direccion[]{o.izquierda(), o, o.derecha(), o.retroceso()};
 
         for (Direccion d : prioridad) {
             if (sensores.libre(d)) {
@@ -168,7 +175,8 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
         if (sensores.bloqueado(mejorMovimiento(sensores))) {
             return false;
         }
-        Direccion ladoLibre = (mano == Mano.DERECHA) ? orientacion.izquierda() : orientacion.derecha();
+        Direccion o = orientacion();
+        Direccion ladoLibre = (mano == Mano.DERECHA) ? o.izquierda() : o.derecha();
         int haciaObjetivoX = sensores.objetivo().x() - sensores.posicion().x();
         int haciaObjetivoY = sensores.objetivo().y() - sensores.posicion().y();
         return haciaObjetivoX * ladoLibre.dx() + haciaObjetivoY * ladoLibre.dy() > 0;
@@ -193,5 +201,49 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
 
     private int distanciaTras(SensoresGrid sensores, Direccion d) {
         return sensores.posicion().mover(d).distanciaManhattan(sensores.objetivo());
+    }
+
+    /**
+     * Devuelve la orientación actual del agente (último movimiento o dirección inicial).
+     * Falla explícitamente si se consulta antes de la inicialización.
+     */
+    private Direccion orientacion() {
+        return orientacion.orElseThrow(() -> new IllegalStateException("Orientación no inicializada"));
+    }
+
+    /**
+     * Calcula la orientación inicial hacia la meta según el eje con mayor distancia:
+     * - Si domina la separación horizontal (|dx| >= |dy|), se orienta hacia ESTE u OESTE.
+     * - Si domina la separación vertical (|dy| > |dx|), se orienta hacia SUR o NORTE.
+     * En caso de empate diagonal, se prioriza el eje horizontal.
+     */
+    private Direccion orientacionInicial(Posicion pos, Posicion objetivo) {
+        int dx = objetivo.x() - pos.x();
+        int dy = objetivo.y() - pos.y();
+        Direccion direccion;
+
+        if (Math.abs(dx) >= Math.abs(dy)) {
+            if (dx > 0) {
+                direccion = Direccion.ESTE;
+            } else if (dx < 0) {
+                direccion = Direccion.OESTE;
+            } else if (dy > 0) {
+                direccion = Direccion.SUR;
+            } else {
+                direccion = Direccion.NORTE;
+            }
+        } else {
+            if (dy > 0) {
+                direccion = Direccion.SUR;
+            } else if (dy < 0) {
+                direccion = Direccion.NORTE;
+            } else if (dx > 0) {
+                direccion = Direccion.ESTE;
+            } else {
+                direccion = Direccion.OESTE;
+            }
+        }
+
+        return direccion;
     }
 }
