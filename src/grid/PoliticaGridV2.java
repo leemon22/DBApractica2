@@ -63,7 +63,7 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
 
         // En el primer ciclo se orienta al agente hacia la meta según el eje dominante
         if (orientacion.isEmpty()) {
-            orientacion = Optional.of(orientacionInicial(sensores.posicion(), sensores.objetivo()));
+            orientacion = Optional.of(direccionPrimaria(sensores.posicion(), sensores.objetivo()));
         }
 
         if (modo == Modo.SEGUIMIENTO && debeSalir(sensores)) {
@@ -86,12 +86,14 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
 
     // --- ACERCAMIENTO ---
 
-    // Primera dirección libre que acerca al objetivo. Si no hay ninguna, empieza un rodeo.
+    /**
+     * Modo ACERCAMIENTO: avanza hacia la meta siguiendo el eje dominante.
+     * Si la dirección primaria está bloqueada, detecta el obstáculo e inicia el seguimiento.
+     */
     private Direccion acercarse(SensoresGrid sensores) {
-        for (Direccion d : Direccion.values()) {
-            if (sensores.libre(d) && acerca(sensores, d)) {
-                return d;
-            }
+        Direccion primaria = direccionPrimaria(sensores.posicion(), sensores.objetivo());
+        if (sensores.libre(primaria)) {
+            return primaria;
         }
         return iniciarSeguimiento(sensores);
     }
@@ -184,19 +186,11 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
 
     // --- Utilidades ---
 
-    // Primera dirección (orden N, E, S, O) que reduce la distancia, esté libre o no.
-    // Existe siempre que el agente no esté ya en el objetivo.
+    /**
+     * Devuelve la dirección hacia la meta sobre el eje dominante, esté libre o no.
+     */
     private Direccion mejorMovimiento(SensoresGrid sensores) {
-        for (Direccion d : Direccion.values()) {
-            if (acerca(sensores, d)) {
-                return d;
-            }
-        }
-        throw new IllegalStateException("Ninguna dirección acerca al objetivo desde " + sensores.posicion());
-    }
-
-    private boolean acerca(SensoresGrid sensores, Direccion d) {
-        return distanciaTras(sensores, d) < sensores.distanciaAlObjetivo();
+        return direccionPrimaria(sensores.posicion(), sensores.objetivo());
     }
 
     private int distanciaTras(SensoresGrid sensores, Direccion d) {
@@ -212,12 +206,12 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
     }
 
     /**
-     * Calcula la orientación inicial hacia la meta según el eje con mayor distancia:
+     * Calcula la dirección hacia la meta según el eje con mayor distancia (eje dominante):
      * - Si domina la separación horizontal (|dx| >= |dy|), se orienta hacia ESTE u OESTE.
      * - Si domina la separación vertical (|dy| > |dx|), se orienta hacia SUR o NORTE.
      * En caso de empate diagonal, se prioriza el eje horizontal.
      */
-    private Direccion orientacionInicial(Posicion pos, Posicion objetivo) {
+    private Direccion direccionPrimaria(Posicion pos, Posicion objetivo) {
         int dx = objetivo.x() - pos.x();
         int dy = objetivo.y() - pos.y();
         Direccion direccion;
