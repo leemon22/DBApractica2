@@ -18,7 +18,7 @@ public class LanzadorGrid {
             runtime.setCloseVM(true);
 
             Profile perfil = new ProfileImpl();
-            perfil.setParameter(Profile.GUI, "true");
+            perfil.setParameter(Profile.GUI, "false");
 
             AgentContainer contenedor = runtime.createMainContainer(perfil);
 

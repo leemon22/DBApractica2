@@ -11,7 +11,7 @@ public class AgenteGrid extends Agente<SensoresGrid, Direccion> {
     @Override
     protected ComponentesAgente<SensoresGrid, Direccion> iniciar() {
         EntornoGrid entorno = new EntornoGrid();
-        PoliticaGrid politica = new PoliticaGrid();
+        PoliticaGridV2 politica = new PoliticaGridV2();
         BucleAgenticoGrid bucle = new BucleAgenticoGrid(this, entorno, politica);
 
         return new ComponentesAgente<>(entorno, bucle);
