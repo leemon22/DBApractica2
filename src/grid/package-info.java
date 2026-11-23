@@ -11,7 +11,8 @@
  *   <li>{@link grid.EntornoGrid}: Entorno que comunica con DBA Lab, cachea el objetivo y envía movimientos.</li>
  *   <li>{@link grid.BucleAgenticoGrid}: Bucle agéntico que comprueba condiciones de parada en la meta o por fin de run.</li>
  *   <li>{@link grid.VisualizadorGridCli}: Vista por consola (CLI) con renderizado ASCII dinámico y autoescalable.</li>
- *   <li>{@link grid.PoliticaGrid}: Política reactiva Bug0 con progreso y elección dinámica de mano.</li>
+ *   <li>{@link grid.PoliticaGrid}: Política reactiva inicial Bug0 con progreso y elección dinámica de mano.</li>
+ *   <li>{@link grid.PoliticaGridV2}: Política reactiva optimizada (activa en AgenteGrid) con navegación por eje dominante, inercia direccional, despegue coherente por lado libre y detección de ciclos.</li>
  *   <li>{@link grid.Direccion}: Direcciones cardinales (NORTE, ESTE, SUR, OESTE) y acciones de movimiento.</li>
  *   <li>{@link grid.Posicion}: Coordenadas (x, y) inmutables y cálculo de heurística de distancia Manhattan.</li>
  *   <li>{@link grid.SensoresGrid}: Percepciones del agente con posición, objetivo, bumpers y energía.</li>

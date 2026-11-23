@@ -265,8 +265,16 @@ Los retos se seleccionan por `environmentType` (`GRID_2D`) y capacidades anuncia
 
 Navegación por **seguimiento de muros: Bug0 con progreso y elección dinámica de mano** (Tema 2, indicación del profesor). El agente solo percibe sus cuatro vecinas, así que no planifica sobre un mapa: avanza hacia el objetivo mientras puede y rodea los obstáculos cuando no.
 
-- **ACERCAMIENTO:** se mueve a la primera dirección libre que reduce la distancia Manhattan al objetivo, con desempate N, E, S, O.
-- **SEGUIMIENTO:** si ninguna dirección que acerca está libre, guarda la distancia `d0`, elige mano (la celda lateral libre más cercana al objetivo) y rodea el obstáculo hasta que está más cerca que `d0`, el camino hacia el objetivo está libre y el objetivo queda en el lado libre, el contrario al muro (*criterio lateral*).
+El repositorio cuenta con dos implementaciones de la política:
+- **`PoliticaGrid` (V1, baseline):**
+  - **ACERCAMIENTO:** se mueve a la primera dirección libre que reduce la distancia Manhattan al objetivo, con desempate fijo N, E, S, O.
+  - **SEGUIMIENTO:** si ninguna dirección que acerca está libre, guarda la distancia `d0`, elige mano (la celda lateral libre más cercana al objetivo) y rodea el obstáculo hasta que está más cerca que `d0`, el camino hacia el objetivo está libre y el objetivo queda en el lado libre, el contrario al muro (*criterio lateral*).
+- **`PoliticaGridV2` (V2, optimizada y activa en `AgenteGrid`):**
+  - **Eje dominante:** en modo acercamiento prioriza el eje cartesiano de mayor separación relativa ($|dx|$ vs $|dy|$), evitando el sesgo fijo hacia el norte.
+  - **Inercia direccional:** en empates diagonales a 45° ($|dx| == |dy|$), mantiene la dirección previa para evitar zigzags en escalera y ahorrar giros.
+  - **Elección informada de mano:** compara la distancia proyectada al objetivo tras girar a ambos lados antes de fijar la mano (izquierda o derecha).
+  - **Despegue coherente por lado libre:** al cumplir progreso estricto ($h < d_0$) y confirmar vía producto escalar que la salida apunta al semiplano del objetivo ($\vec{v}_{\text{obj}} \cdot \vec{u}_{\text{salida}} > 0$), despega por la casilla perpendicular opuesta al muro.
+  - **Detección de ciclos y ciclo de vida:** memoria inmutable con `EstadoSeguimiento` en `Set` para invertir la mano ante bucles o lanzar `ParadaNavegacion`, junto con `reiniciar()` para reutilización en pruebas.
 - **Seguridad:** nunca se envía un movimiento hacia una dirección con *bumper* a `true`.
 
 El detalle (giros relativos, condición de salida, salvaguardas contra ciclos y energía) está en la sección 7 de `context.md`.
@@ -278,11 +286,12 @@ El detalle (giros relativos, condición de salida, salvaguardas contra ciclos y 
 | `SensoresGrid` | *Record* con posición, objetivo, direcciones bloqueadas y energía. | Rodrigo / Martín | Hecho |
 | `VisualizadorGridCli` | Implementa `Visualizador<SensoresGrid, Direccion>`, mostrando métricas, mapa ASCII autoescalable y selección interactiva de mapas por CLI. | Pedro | Hecho |
 | `EntornoGrid` | Extiende `Entorno<SensoresGrid, Direccion>` sobre DBA Lab. Gestiona la selección del mapa/reto, lee percepciones, cachea objetivo y ejecuta movimientos. | Pedro | Hecho |
-| `PoliticaGrid` | Implementa `Politica<SensoresGrid, Direccion>` con la máquina de estados ACERCAMIENTO / SEGUIMIENTO y salida por criterio lateral. | Rodrigo | Hecho |
-| `AgenteGrid` | Extiende `base.Agente`, instanciando el entorno, política y bucle para Grid sin argumentos de JADE. | Pedro | Hecho |
-| `BucleAgenticoGrid` | Extiende `base.BucleAgentico`, gestionando la parada por objetivo alcanzado o fin de run. | Pedro | Hecho |
+| `PoliticaGrid` | Implementa `Politica<SensoresGrid, Direccion>` (V1 inicial) con máquina de estados ACERCAMIENTO / SEGUIMIENTO y salida por criterio lateral. | Rodrigo | Hecho |
+| `PoliticaGridV2` | Implementa `Politica<SensoresGrid, Direccion>` (V2 optimizada, activa) con eje dominante, inercia direccional, despegue coherente y ciclo de vida. | Rodrigo / Pedro | Hecho |
+| `AgenteGrid` | Extiende `base.Agente`, instanciando el entorno, política (`PoliticaGridV2`) y bucle para Grid sin argumentos de JADE. | Pedro | Hecho |
+| `BucleAgenticoGrid` | Extiende `base.BucleAgentico`, gestionando la parada por objetivo alcanzado o fin de run (captura `ParadaNavegacion` de V1 y V2). | Pedro | Hecho |
 | `LanzadorGrid` | Punto de entrada que arranca JADE e inicia `AgenteGrid`. | Pedro | Hecho |
-| Detección de ciclos y control de energía | Un cambio de mano por ejecución. Parada ante un nuevo ciclo o agotamiento de energía finita. | Martín | Probado localmente |
+| Detección de ciclos y control de energía | Un cambio de mano por ejecución. Parada ante un nuevo ciclo o agotamiento de energía finita. | Martín / Pedro | Probado localmente |
 | `SimuladorGrid` | `Entorno` local con los 7 mapas del guion, para probar sin VPN ni runs. | Cristina | Pendiente |
 
 La prueba de la política usa mapas sintéticos y solo necesita el JDK. Desde la raíz del proyecto, en Bash:
@@ -290,7 +299,7 @@ La prueba de la política usa mapas sintéticos y solo necesita el JDK. Desde la
 ```bash
 clases_grid=$(mktemp -d)
 javac -d "$clases_grid" src/base/{Accion,Sensor,Politica}.java \
-  src/grid/{Direccion,Posicion,SensoresGrid,PoliticaGrid}.java test/grid/PoliticaGridPrueba.java
+  src/grid/{Direccion,Posicion,SensoresGrid,PoliticaGrid,PoliticaGridV2}.java test/grid/PoliticaGridPrueba.java
 java -cp "$clases_grid" grid.PoliticaGridPrueba
 ```
 
@@ -298,6 +307,7 @@ java -cp "$clases_grid" grid.PoliticaGridPrueba
 classDiagram
     EntornoGrid --|> Entorno : extiende
     PoliticaGrid ..|> Politica : implementa
+    PoliticaGridV2 ..|> Politica : implementa
     VisualizadorGridCli ..|> Visualizador : implementa
     AgenteGrid --|> Agente : extiende
     BucleAgenticoGrid --|> BucleAgentico : extiende
@@ -307,6 +317,8 @@ classDiagram
     SensoresGrid --> Posicion : contiene
     PoliticaGrid ..> SensoresGrid : lee
     PoliticaGrid ..> Direccion : decide
+    PoliticaGridV2 ..> SensoresGrid : lee
+    PoliticaGridV2 ..> Direccion : decide
 ```
 
 ### Pendiente de confirmar con el profesor

@@ -102,6 +102,7 @@ DBApractica2/
 │   │   ├── Direccion.java
 │   │   ├── EntornoGrid.java
 │   │   ├── PoliticaGrid.java
+│   │   ├── PoliticaGridV2.java
 │   │   ├── Posicion.java
 │   │   ├── SensoresGrid.java
 │   │   ├── VisualizadorGridCli.java
@@ -313,6 +314,7 @@ Con el criterio lateral, el recorrido supera a la distancia Manhattan en 0,5–7
 | `AgenteGrid` | Extiende `base.Agente`, instanciando el entorno, política y bucle para Grid sin argumentos de JADE. **Hecho.** | Pedro |
 | `BucleAgenticoGrid` | Extiende `base.BucleAgentico`, gestionando la parada por objetivo alcanzado o fin de run. **Hecho.** | Pedro |
 | `PoliticaGrid` | Implementa `Politica<SensoresGrid, Direccion>` con el algoritmo de 7.2 y la salida por criterio lateral. **Hecho (10/11).** Una instancia por run, porque guarda estado. Probada con un banco local en los 7 mapas y todas las combinaciones de inicio y objetivo (59.462 casos): todos llegan, sin choques, con los mismos recorridos que el modelo en Python. No incluye detección de ciclos ni control de energía (Martín). | Rodrigo |
+| `PoliticaGridV2` | Evolución y optimización de `PoliticaGrid` activa en `AgenteGrid`. Incorpora: (1) navegación en acercamiento guiada por **eje dominante** en vez de orden cardinal fijo; (2) **inercia direccional** en empates diagonales a 45° para eliminar oscilaciones en zigzag; (3) **despegue coherente por lado libre** proyectado al semiplano del objetivo mediante producto escalar; (4) **detección de ciclos con memoria inmutable** (`EstadoSeguimiento`) y recuperación por inversión de mano y desandado; y (5) ciclo de vida reutilizable con `reiniciar()` y métodos de observabilidad. **Hecho.** | Rodrigo / Pedro |
 | `DetectorCiclos` / control de energía | Salvaguardas de 7.2. | Martín |
 | `SimuladorGrid` | `Entorno` local con los 7 mapas transcritos del guion, para pruebas sin VPN ni runs. | Cristina |
 | `LanzadorGrid` | Punto de entrada del bloque que arranca JADE e inicia `AgenteGrid`. **Hecho.** | Pedro |
