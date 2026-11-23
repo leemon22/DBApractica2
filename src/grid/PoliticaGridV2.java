@@ -66,13 +66,17 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
             orientacion = Optional.of(direccionPrimaria(sensores.posicion(), sensores.objetivo()));
         }
 
-        if (modo == Modo.SEGUIMIENTO && debeSalir(sensores)) {
-            modo = Modo.ACERCAMIENTO;
+        Direccion direccion;
+        if (modo == Modo.SEGUIMIENTO) {
+            if (debeSalir(sensores)) {
+                modo = Modo.ACERCAMIENTO;
+                direccion = ladoLibre();
+            } else {
+                direccion = seguirMuroConMemoria(sensores);
+            }
+        } else {
+            direccion = acercarse(sensores);
         }
-
-        Direccion direccion = (modo == Modo.ACERCAMIENTO)
-                ? acercarse(sensores)
-                : seguirMuroConMemoria(sensores);
 
         // Salvaguarda: moverse hacia un bumper a true termina el run, así que nunca se envía.
         if (sensores.bloqueado(direccion)) {
@@ -115,7 +119,14 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
         if (sensores.libre(giroIzquierda) && sensores.libre(giroDerecha)) {
             int hIzquierda = distanciaTras(sensores, giroIzquierda);
             int hDerecha = distanciaTras(sensores, giroDerecha);
-            elegida = (hDerecha < hIzquierda) ? giroDerecha : giroIzquierda;
+            if (hDerecha < hIzquierda) {
+                elegida = giroDerecha;
+            } else if (hIzquierda < hDerecha) {
+                elegida = giroIzquierda;
+            } else {
+                // Empate estricto (|dx| o |dy| centrados): preserva la mano previa para coherencia
+                elegida = (mano == Mano.IZQUIERDA) ? giroDerecha : giroIzquierda;
+            }
         } else if (sensores.libre(giroIzquierda)) {
             elegida = giroIzquierda;
         } else if (sensores.libre(giroDerecha)) {
@@ -177,7 +188,6 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
      * 1. Progreso estricto: la distancia a la meta debe ser menor que en el impacto inicial (h < d0).
      * 2. Mano opuesta libre: la casilla lateral contraria al muro no debe estar bloqueada.
      * 3. Orientación hacia la meta: la mano opuesta debe apuntar al semiplano del objetivo.
-     * 4. Avance libre: la dirección primaria hacia la meta debe estar libre para ACERCAMIENTO.
      */
     private boolean debeSalir(SensoresGrid sensores) {
         // 1. Progreso estricto (Bug0): evita bucles infinitos en concavidades
@@ -185,24 +195,25 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
             return false;
         }
 
-        Direccion o = orientacion();
-        Direccion ladoLibre = (mano == Mano.DERECHA) ? o.izquierda() : o.derecha();
+        Direccion salida = ladoLibre();
 
         // 2. Mano opuesta libre: la casilla lateral contraria al muro no debe estar bloqueada
-        if (sensores.bloqueado(ladoLibre)) {
+        if (sensores.bloqueado(salida)) {
             return false;
         }
 
         // 3. Orientación hacia la meta: la mano opuesta debe apuntar al semiplano del objetivo
         int haciaObjetivoX = sensores.objetivo().x() - sensores.posicion().x();
         int haciaObjetivoY = sensores.objetivo().y() - sensores.posicion().y();
-        if (haciaObjetivoX * ladoLibre.dx() + haciaObjetivoY * ladoLibre.dy() <= 0) {
-            return false;
-        }
+        return haciaObjetivoX * salida.dx() + haciaObjetivoY * salida.dy() > 0;
+    }
 
-        // 4. Avance libre: la dirección primaria hacia la meta debe estar libre para ACERCAMIENTO
-        Direccion primaria = direccionPrimaria(sensores.posicion(), sensores.objetivo());
-        return sensores.libre(primaria);
+    /**
+     * Devuelve la dirección perpendicular al muro por el lado libre del agente
+     * (opuesto a la mano que toca el muro).
+     */
+    private Direccion ladoLibre() {
+        return (mano == Mano.DERECHA) ? orientacion().izquierda() : orientacion().derecha();
     }
 
     // --- Utilidades ---
@@ -228,34 +239,32 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
 
     /**
      * Calcula la dirección hacia la meta según el eje con mayor distancia (eje dominante):
-     * - Si domina la separación horizontal (|dx| >= |dy|), se orienta hacia ESTE u OESTE.
+     * - Si domina la separación horizontal (|dx| > |dy|), se orienta hacia ESTE u OESTE.
      * - Si domina la separación vertical (|dy| > |dx|), se orienta hacia SUR o NORTE.
-     * En caso de empate diagonal, se prioriza el eje horizontal.
+     * - En caso de empate diagonal (|dx| == |dy|), se aplica inercia direccional: si la
+     *   orientación actual coincide con uno de los ejes que acercan a la meta, se mantiene;
+     *   en caso contrario (o al inicio), se desempata por el eje horizontal.
      */
     private Direccion direccionPrimaria(Posicion pos, Posicion objetivo) {
         int dx = objetivo.x() - pos.x();
         int dy = objetivo.y() - pos.y();
         Direccion direccion;
 
-        if (Math.abs(dx) >= Math.abs(dy)) {
-            if (dx > 0) {
-                direccion = Direccion.ESTE;
-            } else if (dx < 0) {
-                direccion = Direccion.OESTE;
-            } else if (dy > 0) {
-                direccion = Direccion.SUR;
-            } else {
-                direccion = Direccion.NORTE;
-            }
+        if (Math.abs(dx) > Math.abs(dy)) {
+            direccion = (dx > 0) ? Direccion.ESTE : Direccion.OESTE;
+        } else if (Math.abs(dy) > Math.abs(dx)) {
+            direccion = (dy > 0) ? Direccion.SUR : Direccion.NORTE;
         } else {
-            if (dy > 0) {
-                direccion = Direccion.SUR;
-            } else if (dy < 0) {
-                direccion = Direccion.NORTE;
-            } else if (dx > 0) {
-                direccion = Direccion.ESTE;
+            // Empate diagonal (|dx| == |dy|): inercia direccional para evitar zigzags
+            Direccion dirH = (dx > 0) ? Direccion.ESTE : Direccion.OESTE;
+            Direccion dirV = (dy > 0) ? Direccion.SUR : Direccion.NORTE;
+
+            if (orientacion.isPresent() && orientacion.get() == dirV) {
+                direccion = dirV;
+            } else if (orientacion.isPresent() && orientacion.get() == dirH) {
+                direccion = dirH;
             } else {
-                direccion = Direccion.OESTE;
+                direccion = (dx != 0) ? dirH : ((dy != 0) ? dirV : orientacion.orElse(Direccion.NORTE));
             }
         }
 
