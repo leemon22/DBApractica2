@@ -288,7 +288,7 @@ El detalle (giros relativos, condición de salida, salvaguardas contra ciclos y 
 | `EntornoGrid` | Extiende `Entorno<SensoresGrid, Direccion>` sobre DBA Lab. Gestiona la selección del mapa/reto, lee percepciones, cachea objetivo y ejecuta movimientos. | Pedro | Hecho |
 | `PoliticaGrid` | Implementa `Politica<SensoresGrid, Direccion>` (V1 inicial) con máquina de estados ACERCAMIENTO / SEGUIMIENTO y salida por criterio lateral. | Rodrigo | Hecho |
 | `PoliticaGridV2` | Implementa `Politica<SensoresGrid, Direccion>` (V2 optimizada, activa) con eje dominante, inercia direccional, despegue coherente y ciclo de vida. | Rodrigo / Pedro | Hecho |
-| `AgenteGrid` | Extiende `base.Agente`, instanciando el entorno, política (`PoliticaGridV2`) y bucle para Grid; recibe opcionalmente el contrato Visualizador desde el lanzador. | Pedro | Hecho |
+| `AgenteGrid` | Extiende `base.Agente`, instanciando el entorno, política (`PoliticaGridV2`) y bucle para Grid; se crea sin argumentos de JADE. | Pedro | Hecho |
 | `BucleAgenticoGrid` | Extiende `base.BucleAgentico`, gestionando la parada por objetivo alcanzado o fin de run (captura `ParadaNavegacion` de V1 y V2). | Pedro | Hecho |
 | `LanzadorGrid` | Punto de entrada que arranca JADE e inicia `AgenteGrid`. | Pedro | Hecho |
 | Detección de ciclos y control de energía | Un cambio de mano por ejecución. Parada ante un nuevo ciclo o agotamiento de energía finita. | Martín / Pedro | Probado localmente |
@@ -360,27 +360,22 @@ classDiagram
 
 ### Interfaz Swing de Grid
 
-Ejecutar `src/lanzadores/LanzadorGrid.java` con **Run File (Mayús+F6)** abre la ventana Swing y permite elegir un reto descubierto en DBA Lab. Requiere JDK 25, las dependencias locales de `lib/`, `config.properties` y acceso UGR/VPN. `Run Project` sigue configurado para Termostato. La ventana permite elegir nivel en cada ejecución. El modo consola conserva la selección mediante `DBA_CHALLENGE_ID` si está configurado.
+Ejecutar `src/lanzadores/LanzadorGrid.java` con **Run File (Mayús+F6)**. Al arrancar el propio agente pregunta si se quiere **Ventana Swing** o **Consola**. Cerrar ese selector cancela sin iniciar un run. Requiere JDK 25, las dependencias locales, config.properties y conexión UGR/VPN. Run Project sigue configurado para Termostato.
 
-El lanzador inyecta `Visualizador<SensoresGrid, Direccion>`; el agente no importa Swing ni conoce la ventana. `EntornoGrid` emite los eventos. `grid.vista.VisualizadorGridSwing` los aplica en el hilo gráfico; `MapaExplorado` conserva únicamente lo percibido y `PanelMapa` dibuja la cuadrícula. La política y el cliente HTTP no acceden a los componentes Swing. Las consultas de red se realizan en el hilo del agente.
+El lanzador crea un único `AgenteGrid` con argumentos `null`. El agente pregunta el tipo de interfaz en setup y crea la presentación elegida en iniciar mediante `FabricaPresentacionGrid`; después construye el entorno y su política. El entorno recibe esa presentación mediante un constructor Java ordinario, no por argumentos de JADE. El agente no importa componentes Swing; la fábrica encapsula su construcción. No hay registros globales ni referencias recibidas mediante getArguments. El intercambio de percepciones y resultados reutiliza `Visualizador`.
 
-Colores: azul oscuro para desconocido, claro para libre y rojo oscuro para obstáculo/borde. El agente es un círculo verde y el objetivo un contorno naranja, también visibles al coincidir. La escala se ajusta al mapa y al tamaño de la ventana; una nueva ejecución reinicia la memoria. Los pasos cuentan movimientos `APPLIED`, incluidas revisitas; la energía se etiqueta como la última percibida, porque la acción final no devuelve energía. La ventana permite reiniciar y finalizar mediante un controlador independiente. No incorpora conducción manual del agente.
+- **Reiniciar:** solicita detener el run, espera su cierre y vuelve a descubrir/seleccionar nivel. El mismo agente permanece disponible; se reinician el estado de la política, sensores y mapa para el siguiente run. Cancelar la selección deja la ventana disponible.
+- **Finalizar / X:** solicita salir, cierra el run y la ventana. El lanzador observa la terminación del agente y cierra la plataforma desde un hilo externo. Una petición ya en curso puede terminar antes de la parada.
+- Si falla el cierre, se bloquean los reinicios y se permite Finalizar mostrando el aviso correspondiente.
 
-Desde terminal, tras compilar con Ant:
+El controlador solo gestiona un buzón de órdenes. No crea agentes ni posee referencias a JADE. La selección, las peticiones HTTP y la espera de órdenes se realizan en el hilo del agente; los componentes Swing se actualizan en el EDT. Se conserva `VisualizadorGridCli`, que ejecuta un único run y respeta `DBA_CHALLENGE_ID`. Se puede omitir el selector con `-Ddba.grid.ui=cli` o `-Ddba.grid.ui=swing`. Sin entorno gráfico se utiliza consola. Reiniciar en la ventana vuelve a elegir nivel, manteniendo el tipo de interfaz seleccionado al arrancar.
+
+Colores: oscuro para desconocido, claro para libre y rojo oscuro (`#8B2635`) para muro/borde. El agente es un círculo verde y el objetivo un contorno naranja. La escala se adapta al mapa/ventana y la energía se identifica como última percepción.
 
 ```sh
 java -Ddba.jade.port=11099 -cp build/classes:lib/jade.jar:lib/gson-2.15.0.jar lanzadores.LanzadorGrid
 ```
 
-El puerto es opcional (1099 por defecto). Para conservar la consola, añadir `-Ddba.grid.ui=cli` antes de `-cp`. No se ha modificado la política de navegación.
+El puerto es opcional (1099 por defecto). Las políticas de navegación conservan la implementación de main.
 
-Prueba local de presentación: ejecutar `test/grid/vista/MapaExploradoPrueba.java` con Run File. No requiere VPN ni credenciales; verifica memoria, bordes, movimiento final, contador, crecimiento y reinicio, y genera imágenes en `build/preview-grid/`. Estas imágenes usan datos simulados, no son evidencia de un nuevo run.
-
-**Controles de la ventana:**
-
-- **Reiniciar:** solicita detener la ejecución actual, espera al cierre del run y vuelve a descubrir los niveles. Tras elegir uno, inicia otro agente con política y mapa nuevos. Cancelar la selección deja la ventana preparada para otro intento.
-- **Finalizar** (también la X de la ventana): solicita la parada, espera el cierre del run, cierra la plataforma JADE, la ventana y el proceso de la aplicación. Una petición que ya esté en curso puede terminar antes de la parada. Si no se puede confirmar el cierre remoto, muestra un aviso para revisar DBA Lab.
-
-Mientras se procesa un reinicio, el botón se bloquea para evitar duplicados. Si falla el cierre, no inicia otro run. `ControladorGrid` serializa las operaciones; la vista emite órdenes mediante un contrato y `AgenteGrid` recibe únicamente una señal de sesión. La navegación, Base y Termostato conservan el código de main.
-
-Pruebas adicionales: `grid.control.ControladorGridPrueba` comprueba reinicio, cancelación, pulsaciones repetidas, errores de cierre y salida durante selección/arranque. `JadeLocalPrueba` utiliza agentes JADE locales sin DBA Lab. `FlujoLocalPrueba` ejercita el agente Grid y el cliente HTTP reales contra un servidor local; debe ejecutarse en un directorio temporal vacío para proteger la configuración personal. Todas las pruebas se ejecutan como procesos Java separados.
+Pruebas locales: `test/grid/vista/MapaExploradoPrueba.java` verifica y renderiza el mapa con datos simulados; `test/grid/control/ControladorGridPrueba.java` comprueba el bucle y el entorno con reinicio, cancelación, cierre fallido y salida inicial. No necesitan VPN ni credenciales. `ArranqueSinArgumentosPrueba` valida el lanzador, el agente real y la salida de JADE frente a un servidor HTTP local: debe ejecutarse en un directorio temporal vacío, como proceso separado, para proteger la configuración personal.

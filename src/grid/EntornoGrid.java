@@ -7,6 +7,8 @@ import base.InfoReto;
 import base.LecturaSensor;
 import base.RespuestaAccion;
 import base.Visualizador;
+import grid.control.ControladorGrid;
+import grid.vista.FabricaPresentacionGrid;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.List;
@@ -49,14 +51,45 @@ public class EntornoGrid extends Entorno<SensoresGrid, Direccion> {
     private Posicion objetivo;
     private SensoresGrid ultimosSensores;
     private final Optional<Long> challengeIdPreferido;
+    private ControladorGrid control;
 
     // --- Constructores ---
 
     /**
-     * Constructor por defecto: lee configuración de "config.properties" y usa el visualizador CLI.
+     * Constructor por defecto: crea su propia presentación mediante la fábrica de Grid.
      */
     public EntornoGrid() {
-        this(new ClienteHttpDba(), new VisualizadorGridCli(), new Configuracion().getChallengeId());
+        this(new ClienteHttpDba(), FabricaPresentacionGrid.crear());
+    }
+
+    /** Recibe la presentación creada por iniciar(), mediante construcción Java ordinaria. */
+    public EntornoGrid(FabricaPresentacionGrid.Presentacion presentacion) {
+        this(new ClienteHttpDba(), presentacion);
+    }
+
+    private EntornoGrid(ClienteHttpDba cliente, FabricaPresentacionGrid.Presentacion presentacion) {
+        this(cliente, presentacion.vista(), presentacion.control() == null
+                ? new Configuracion().getChallengeId() : Optional.empty());
+        this.control = presentacion.control();
+    }
+
+    // Permite componer/probar el entorno con contratos ordinarios, nunca con argumentos JADE.
+    public EntornoGrid(ClienteHttpDba cliente, ControladorGrid.Vista vista, ControladorGrid control) {
+        this(cliente, vista, Optional.empty());
+        this.control = control;
+    }
+
+    public boolean esInteractivo() { return control != null; }
+    public boolean paradaSolicitada() { return control != null && control.paradaSolicitada(); }
+    public boolean salidaSolicitada() { return control != null && control.salidaSolicitada(); }
+    public void solicitarSalida() { if (control != null) control.finalizar(); }
+    public void bloquearReinicio(String motivo) { if (control != null) control.bloquear(motivo); }
+    public void cerrarPresentacion(Throwable fallo) { if (control != null) control.cerrarVentana(fallo); }
+    public void terminarEjecucion() throws IOException, InterruptedException {
+        cerrarRun();
+        if (isActivo()) throw new IOException("El run sigue activo tras solicitar el cierre");
+        getEstadoControl().ifPresent(visualizador::mostrarFin);
+        if (control != null) control.enEspera("Ejecución terminada. Puedes reiniciar o finalizar.");
     }
 
     /**
@@ -96,6 +129,21 @@ public class EntornoGrid extends Entorno<SensoresGrid, Direccion> {
 
     @Override
     public void iniciarRun() throws IOException, InterruptedException {
+        if (control == null) { iniciarReto(); return; }
+        while (control.esperarInicio()) {
+            try { iniciarReto(); control.iniciada(); return; }
+            catch (ControladorGrid.SeleccionCancelada cancelada) {
+                control.enEspera("Selección cancelada. Puedes elegir otro nivel.");
+            } catch (Exception e) {
+                try { cerrarRun(); control.enEspera("No se pudo iniciar: " + e.getMessage()); }
+                catch (Exception cierre) { control.bloquear("No se pudo cerrar el run: " + cierre.getMessage()); }
+            }
+        }
+    }
+
+    private void iniciarReto() throws IOException, InterruptedException {
+        ultimosSensores = null;
+        objetivo = null;
         InfoReto reto = seleccionarReto("GRID_2D", challengeIdPreferido)
                 .orElseThrow(() -> new IllegalStateException("No hay retos de tipo GRID_2D disponibles en DBA Lab"));
 
@@ -150,6 +198,7 @@ public class EntornoGrid extends Entorno<SensoresGrid, Direccion> {
 
     @Override
     public void ejecutarAccion(Direccion accion) throws IOException, InterruptedException {
+        if (paradaSolicitada()) throw new PoliticaGridV2.ParadaNavegacion("Parada solicitada desde la presentación");
         String codigoAccion = MAPA_ACCIONES.get(accion);
         RespuestaAccion respuesta = cliente.enviarAccion(runId, codigoAccion);
         this.estadoActual = respuesta.control();
