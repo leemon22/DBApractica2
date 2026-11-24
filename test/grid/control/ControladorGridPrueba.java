@@ -1,176 +1,42 @@
 package grid.control;
-
-import base.EstadoControl;
-import base.InfoReto;
-import base.Visualizador;
-import grid.Direccion;
-import grid.SensoresGrid;
-import java.io.IOException;
-import java.util.List;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-
-/** Pruebas del reinicio/cierre con ejecuciones simuladas, sin VPN ni token. */
+import base.*;import grid.*;import java.io.IOException;import java.util.*;import java.util.concurrent.*;
+/** Prueba de la presentación/entorno con cliente local simulado, sin credenciales. */
 public final class ControladorGridPrueba {
-    private static final InfoReto A = new InfoReto(2, "GRID_2D", List.of(), List.of());
-    private static final InfoReto B = new InfoReto(3, "GRID_2D", List.of(), List.of());
-
-    public static void main(String[] args) throws Exception {
-        probarReinicioOrdenado();
-        probarCancelarYVolver();
-        probarCierreFallido();
-        probarFinalizarSeleccion();
-        probarFinalizarDuranteArranque();
-        probarDescubrimientoFallido(false);
-        probarDescubrimientoFallido(true);
-        System.out.println("Control de ventana: 7 escenarios superados sin VPN ni token.");
-    }
-
-    private static void probarReinicioOrdenado() throws Exception {
-        Vista vista = new Vista(); Motor motor = new Motor();
-        CountDownLatch salio = new CountDownLatch(1);
-        ControladorGrid control = new ControladorGrid(vista, motor, () -> {
-            exigir(vista.cerrada.getCount() == 0 && motor.cierres.get() == 1, "Salida antes del cierre coordinado");
-            salio.countDown();
-        });
-        vista.selecciones.add(A); vista.selecciones.add(B);
-        try {
-            control.reiniciar(); SesionGrid primera = tomar(motor.inicios); vista.esperarDisponible();
-            control.reiniciar(); control.reiniciar();
-            exigir(primera.detenerSolicitado(), "Reiniciar no solicita detener el run actual");
-            exigir(motor.inicios.poll(100, TimeUnit.MILLISECONDS) == null, "Se solaparon dos ejecuciones");
-            primera.completar(null);
-            SesionGrid segunda = tomar(motor.inicios); vista.esperarDisponible();
-            exigir(segunda.retoId() == B.id() && motor.descubrimientos.get() == 2, "No volvió a descubrir/elegir nivel");
-            control.finalizar(); control.finalizar();
-            exigir(segunda.detenerSolicitado(), "Finalizar no solicita parada");
-            exigir(!motor.cerrado.await(100, TimeUnit.MILLISECONDS), "Se cerró JADE antes del agente");
-            segunda.completar(null); esperar(vista.cerrada);
-            esperar(salio);
-            exigir(motor.cierres.get() == 1 && vista.aviso == null, "Cierre duplicado o falso error");
-            control.reiniciar(); exigir(motor.inicios.isEmpty(), "Se reinició una ventana cerrada");
-        } finally { completarTodo(motor); control.finalizar(); esperar(vista.cerrada); }
-    }
-
-    private static void probarCancelarYVolver() throws Exception {
-        Vista vista = new Vista(); Motor motor = new Motor(); ControladorGrid control = new ControladorGrid(vista, motor);
-        try {
-            vista.selecciones.add(new ControladorGrid.SeleccionCancelada());
-            control.reiniciar(); vista.esperarDisponible();
-            exigir(motor.inicios.isEmpty(), "Cancelar la selección creó una ejecución");
-            vista.selecciones.add(A); control.reiniciar();
-            SesionGrid sesion = tomar(motor.inicios); vista.esperarDisponible();
-            sesion.completar(null); // Final normal antes de pulsar Finalizar.
-            control.finalizar(); esperar(vista.cerrada);
-            exigir(motor.cierres.get() == 1, "No cerró tras un fin natural");
-        } finally { completarTodo(motor); control.finalizar(); esperar(vista.cerrada); }
-    }
-
-    private static void probarCierreFallido() throws Exception {
-        Vista vista = new Vista(); Motor motor = new Motor(); ControladorGrid control = new ControladorGrid(vista, motor);
-        try {
-            vista.selecciones.add(A); control.reiniciar();
-            SesionGrid sesion = tomar(motor.inicios); vista.esperarDisponible();
-            sesion.completar(new IOException("Cierre remoto fallido"));
-            control.reiniciar(); vista.esperarDisponible();
-            exigir(motor.inicios.isEmpty() && motor.descubrimientos.get() == 1, "Reinició sin confirmar el cierre anterior");
-            exigir(vista.mensajes.stream().anyMatch(s -> s.contains("Cierre remoto fallido")), "No mostró el error");
-            control.finalizar(); esperar(vista.cerrada);
-            exigir(vista.aviso != null && vista.aviso.contains("Cierre remoto fallido"), "Ocultó el error al salir");
-        } finally { completarTodo(motor); control.finalizar(); esperar(vista.cerrada); }
-    }
-
-    private static void probarFinalizarSeleccion() throws Exception {
-        Vista vista = new Vista(); Motor motor = new Motor(); ControladorGrid control = new ControladorGrid(vista, motor);
-        try {
-            control.reiniciar(); esperar(vista.seleccionAbierta);
-            control.finalizar(); esperar(vista.cerrada);
-            exigir(motor.inicios.isEmpty(), "Finalizar durante selección creó un run");
-        } finally { control.finalizar(); esperar(vista.cerrada); }
-    }
-
-    private static void probarFinalizarDuranteArranque() throws Exception {
-        Vista vista = new Vista(); Motor motor = new Motor(); motor.bloquearInicio = true;
-        ControladorGrid control = new ControladorGrid(vista, motor);
-        try {
-            vista.selecciones.add(A); control.reiniciar(); esperar(motor.entrando);
-            control.finalizar(); motor.permitirInicio.countDown();
-            SesionGrid sesion = tomar(motor.inicios);
-            long limite = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-            while (!sesion.detenerSolicitado() && System.nanoTime() < limite) {
-                java.util.concurrent.locks.LockSupport.parkNanos(TimeUnit.MILLISECONDS.toNanos(1));
-            }
-            exigir(sesion.detenerSolicitado(), "Quedó un agente tardío sin solicitud de parada");
-            sesion.completar(null); esperar(vista.cerrada);
-        } finally { motor.permitirInicio.countDown(); completarTodo(motor); control.finalizar(); esperar(vista.cerrada); }
-    }
-
-    private static void probarDescubrimientoFallido(boolean error) throws Exception {
-        Vista vista = new Vista(); Motor motor = new Motor(); motor.sinRetos = !error; motor.errorDescubrimiento = error;
-        ControladorGrid control = new ControladorGrid(vista, motor);
-        try {
-            control.reiniciar(); vista.esperarDisponible();
-            exigir(motor.inicios.isEmpty(), "Se inició sin retos disponibles");
-            exigir(vista.mensajes.stream().anyMatch(s -> s.startsWith("No se pudo reiniciar")), "No informó del fallo");
-            control.finalizar(); esperar(vista.cerrada);
-        } finally { control.finalizar(); esperar(vista.cerrada); }
-    }
-
-    private static final class Motor implements ControladorGrid.Motor {
-        final BlockingQueue<SesionGrid> inicios = new LinkedBlockingQueue<>();
-        final List<SesionGrid> sesiones = new CopyOnWriteArrayList<>();
-        final AtomicInteger descubrimientos = new AtomicInteger(), cierres = new AtomicInteger();
-        final CountDownLatch cerrado = new CountDownLatch(1), entrando = new CountDownLatch(1), permitirInicio = new CountDownLatch(1);
-        boolean bloquearInicio, sinRetos, errorDescubrimiento;
-        @Override public List<InfoReto> descubrirRetos() throws Exception {
-            descubrimientos.incrementAndGet();
-            if (errorDescubrimiento) throw new IOException("Red simulada no disponible");
-            return sinRetos ? List.of() : List.of(A, B);
-        }
-        @Override public SesionGrid iniciar(InfoReto reto, Visualizador<SensoresGrid, Direccion> vista) throws Exception {
-            entrando.countDown(); if (bloquearInicio) esperar(permitirInicio);
-            SesionGrid sesion = new SesionGrid(reto.id()); sesiones.add(sesion); inicios.add(sesion); return sesion;
-        }
-        @Override public void cerrarPlataforma() { cierres.incrementAndGet(); cerrado.countDown(); }
-    }
-
-    private static final class Vista implements ControladorGrid.Vista {
-        final BlockingQueue<Object> selecciones = new LinkedBlockingQueue<>();
-        final BlockingQueue<String> disponibles = new LinkedBlockingQueue<>();
-        final List<String> mensajes = new CopyOnWriteArrayList<>();
-        final CountDownLatch cerrada = new CountDownLatch(1), seleccionAbierta = new CountDownLatch(1);
-        volatile String aviso;
-        void esperarDisponible() throws Exception { tomar(disponibles); }
-        @Override public InfoReto seleccionarReto(List<InfoReto> retos) {
-            seleccionAbierta.countDown();
-            try {
-                Object valor = tomar(selecciones);
-                if (valor instanceof ControladorGrid.SeleccionCancelada e) throw e;
-                return (InfoReto) valor;
-            } catch (RuntimeException e) { throw e; }
-            catch (Exception e) { throw new IllegalStateException(e); }
-        }
-        @Override public void mostrarOperacion(String texto, boolean ocupado, boolean finalizando) {
-            mensajes.add(texto); if (!ocupado) disponibles.add(texto);
-        }
-        @Override public void cancelarSeleccion() { selecciones.add(new ControladorGrid.SeleccionCancelada()); }
-        @Override public void cerrarVentana(String aviso) { this.aviso = aviso; cerrada.countDown(); }
-        @Override public void mostrarRetoEncontrado(InfoReto reto) { }
-        @Override public void mostrarInicio(String id, EstadoControl estado) { }
-        @Override public void mostrarPercepcion(SensoresGrid sensores) { }
-        @Override public void mostrarAccion(Direccion d, String resultado, EstadoControl estado) { }
-        @Override public void mostrarCierre(String id) { }
-        @Override public void mostrarFin(EstadoControl estado) { }
-    }
-
-    private static void completarTodo(Motor motor) { motor.sesiones.forEach(s -> s.completar(null)); }
-    private static void esperar(CountDownLatch latch) throws Exception { exigir(latch.await(5, TimeUnit.SECONDS), "Tiempo de espera agotado"); }
-    private static <T> T tomar(BlockingQueue<T> cola) throws Exception {
-        T valor = cola.poll(5, TimeUnit.SECONDS); exigir(valor != null, "No se recibió el evento esperado"); return valor;
-    }
-    private static void exigir(boolean condicion, String mensaje) { if (!condicion) throw new AssertionError(mensaje); }
+ public static void main(String[] args)throws Exception {
+  Vista v=new Vista();ControladorGrid c=new ControladorGrid(v);Cliente cl=new Cliente();v.opciones.addAll(List.of(2L,3L));
+  EntornoGrid e=new EntornoGrid(cl,v,c);e.iniciarRun();BucleAplicacionGrid bucle=new BucleAplicacionGrid(new jade.core.Agent(),e,new PoliticaGridV2());
+  bucle.action();c.reiniciar();c.reiniciar();
+  try{e.ejecutarAccion(Direccion.ESTE);throw new AssertionError("Acción tras parada");}catch(PoliticaGridV2.ParadaNavegacion ok){}
+  bucle.action();exigir(!bucle.done(),"El agente terminó antes de permitir reiniciar");bucle.action();
+  exigir(cl.eventos.equals(List.of("inicio2","accion","cierre","inicio3","accion")),"Solapamiento");
+  c.finalizar();bucle.action();exigir(bucle.done(),"No termina al pulsar Finalizar");e.terminarEjecucion();e.cerrarPresentacion(null);exigir(v.cerrada&&cl.eventos.size()==6,"No cerró");
+  v=new Vista();c=new ControladorGrid(v);cl=new Cliente();v.opciones.addAll(List.of(-1L,2L));EntornoGrid cancel=new EntornoGrid(cl,v,c);
+  ExecutorService hilo=Executors.newSingleThreadExecutor();
+  try{Future<?> f=hilo.submit(()->{try{cancel.iniciarRun();}catch(Exception x){throw new RuntimeException(x);}});
+   exigir(v.cancelada.await(5,TimeUnit.SECONDS),"Cancelación");exigir(cl.eventos.isEmpty(),"Cancelar creó run");c.reiniciar();f.get(5,TimeUnit.SECONDS);
+   cl.fallar=true;try{cancel.terminarEjecucion();throw new AssertionError("Error oculto");}catch(IOException x){cancel.bloquearReinicio(x.getMessage());}
+   c.reiniciar();c.finalizar();cancel.iniciarRun();exigir(cl.eventos.equals(List.of("inicio2")),"Reinició tras fallo");
+  }finally{c.finalizar();hilo.shutdownNow();}
+  v=new Vista();c=new ControladorGrid(v);cl=new Cliente();c.finalizar();new EntornoGrid(cl,v,c).iniciarRun();exigir(cl.eventos.isEmpty(),"Inicio tras salir");
+  System.out.println("Reinicio, cancelación, cierre fallido y salida inicial: correctos.");
+ }
+ static void exigir(boolean b,String m){if(!b)throw new AssertionError(m);}
+ static class Vista implements ControladorGrid.Vista{
+  Queue<Long> opciones=new ConcurrentLinkedQueue<>();CountDownLatch cancelada=new CountDownLatch(1);boolean cerrada;
+  public InfoReto seleccionarReto(List<InfoReto> rs){long id=opciones.remove();if(id<0)throw new ControladorGrid.SeleccionCancelada();return rs.stream().filter(r->r.id()==id).findFirst().orElseThrow();}
+  public void mostrarOperacion(String s,boolean ocupado,boolean salir){if(s.startsWith("Selección cancelada"))cancelada.countDown();}
+  public void cancelarSeleccion(){}public void cerrarVentana(String s){cerrada=true;}public void mostrarRetoEncontrado(InfoReto r){}
+  public void mostrarInicio(String r,EstadoControl e){}public void mostrarPercepcion(SensoresGrid s){}public void mostrarAccion(Direccion d,String r,EstadoControl e){}public void mostrarCierre(String r){}public void mostrarFin(EstadoControl e){}
+ }
+ static class Cliente extends ClienteHttpDba{
+  List<String> eventos=new CopyOnWriteArrayList<>();String id;boolean fallar;
+  Cliente(){super("http://local-simulado","prueba");}
+  public List<InfoReto> getRetos(){return List.of(reto(2),reto(3));}
+  InfoReto reto(long n){return new InfoReto(n,"GRID_2D",List.of("grid.target","grid.position","grid.bumpers","grid.energy"),List.of("grid.move.north","grid.move.east","grid.move.south","grid.move.west"));}
+  EstadoControl estado(EstadoControl.RunStatus s){return new EstadoControl(id,s,null);}
+  public EstadoControl iniciarRun(long n){id=""+n;eventos.add("inicio"+n);return estado(EstadoControl.RunStatus.ACTIVE);}
+  public LecturaSensor consultarSensor(String run,String sensor){return new LecturaSensor(sensor,sensor.equals("grid.bumpers")?Map.of("north",false,"east",false,"south",false,"west",false):sensor.equals("grid.energy")?Map.of("mode","FINITE","remaining",100):Map.of("x",sensor.equals("grid.target")?2:0,"y",0),estado(EstadoControl.RunStatus.ACTIVE));}
+  public RespuestaAccion enviarAccion(String r,String a){eventos.add("accion");return new RespuestaAccion("APPLIED",null,estado(EstadoControl.RunStatus.ACTIVE));}
+  public EstadoControl cerrarRun(String r)throws IOException{if(fallar)throw new IOException("Fallo simulado");eventos.add("cierre");return estado(EstadoControl.RunStatus.INTERRUPTED);}
+ }
 }

@@ -327,31 +327,24 @@ Con el criterio lateral, el recorrido supera a la distancia Manhattan en 0,5–7
 - **[POR VALIDAR]** Si los retos se resuelven una vez por grupo o con el token de cada integrante (preguntar al profesor).
 - **[POR VALIDAR]** La guía `guia-api-grid.md` es un borrador docente; confirmar si hay versión revisada.
 
-### 7.5 Interfaz Swing de Grid — aporte local del 24/11/2026
+### 7.5 Interfaz Swing de Grid — 24/11/2026
 
-**Base de integración:** rama `codex/interfaz-grid`, creada desde `origin/main` (`c0138bd`, PR #8 incluida). El aporte se limita a la presentación Swing, su inyección por el contrato `Visualizador`, el soporte del lanzador y pruebas/documentación de la vista.
+La vista usa `MapaExplorado` y `PanelMapa`: memoria de celdas percibidas, escala adaptable, agente/objetivo superpuestos y muros en rojo oscuro (`#8B2635`). Se comunica mediante `Visualizador`, sin referencias al agente concreto ni al cliente HTTP. El render y la delegación de botones se verifican sin acceso al laboratorio.
 
-- `grid.vista.VisualizadorGridSwing` recibe eventos de presentación y los procesa en el hilo gráfico. No tiene referencias al agente JADE, a la política ni al cliente HTTP.
-- `MapaExplorado` guarda únicamente las celdas percibidas y `PanelMapa` ajusta la cuadrícula al mapa y a la ventana. Distingue desconocido, libre y muro/borde por color (muros en rojo oscuro, `#8B2635`); superpone agente y objetivo.
-- El lanzador elige la vista y la pasa como contrato a `AgenteGrid`. La política sigue siendo la V2 de main. La consola se conserva con `-Ddba.grid.ui=cli`; el puerto de JADE se puede configurar con `-Ddba.jade.port` (1099 por defecto).
-- El último desplazamiento APPLIED se refleja en la vista aunque no haya otra percepción. Los pasos cuentan movimientos; la energía se etiqueta como última percepción.
-- El entorno notifica a la vista el cierre confirmado del run. La ventana se puede minimizar durante la ejecución; los controles de reinicio y cierre se describen en 7.6.
+### 7.6 Reiniciar y Finalizar sin argumentos de agente — 24/11/2026
 
-**Prueba local:** `test/grid/vista/MapaExploradoPrueba.java`, sin VPN ni credenciales. Comprueba memoria parcial, bordes, llegada, contador, crecimiento y reducción al reiniciar, y genera imágenes de la presentación con datos simulados en `build/preview-grid/`.
+**Criterio docente transmitido por el usuario:** evitar inyectar visualizador y sesión al crear un agente JADE. La versión inicial de la interfaz (PR #9) lo hacía; esta revisión elimina ese mecanismo.
 
-**Pendiente de validación interactiva:** selección/cancelación de reto, redimensionado, ejecución real y cierre de la ventana. Los cambios posteriores a la primera interfaz sobre estados terminales y recuperación de respuestas perdidas quedaron fuera de esta rama; el trabajo previo está respaldado en un stash local. El profesor ha anunciado, según el usuario, ampliar de 210 a 220 la energía del reto pendiente; aquí se conserva la navegación de main, sin introducir ajustes para ese mapa.
+- `LanzadorGrid` crea `AgenteGrid` con `null`, sin parámetros de aplicación. No construye vistas ni sesiones.
+- `AgenteGrid.setup()` pregunta el tipo de interfaz (Swing o consola); `iniciar()` crea la presentación mediante la fábrica y construye su entorno y política. No usa getArguments ni importa componentes Swing.
+- `FabricaPresentacionGrid` encapsula la elección en EDT y la creación concreta de la vista y el buzón. El agente entrega esa presentación a EntornoGrid mediante construcción Java ordinaria. La fábrica crea objetos nuevos; no mantiene un registro global ni entrega argumentos ocultos. Cerrar el selector cancela el agente sin crear run; las propiedades dba.grid.ui permiten elegir explícitamente consola/Swing sin pregunta, y el modo headless usa consola.
+- `ControladorGrid` es un buzón local de órdenes de reinicio/salida. Se eliminan `SesionGrid` y `MotorJadeGrid`.
+- `BucleAplicacionGrid` conserva el agente entre runs en modo gráfico: cierra el anterior antes de iniciar otro y reinicia la política. La vista y los sensores eliminan sus datos anteriores. En CLI se mantiene un único run.
+- Finalizar despierta la espera de órdenes y cancela el selector. El agente cierra su run y la presentación; un hilo externo del lanzador detecta la terminación y cierra JADE. Si el cierre falla, se impide otro inicio y se informa al salir.
 
-### 7.6 Reiniciar y Finalizar desde la interfaz — 24/11/2026
+**Validación local:** compilación Ant/JDK 25; pruebas del controlador/entorno/bucle con cliente simulado; políticas V1/V2 originales; render Swing. Prueba adicional del lanzador real, agente creado sin argumentos y servidor HTTP en loopback, desde directorio temporal con credencial ficticia: run simulado SUCCEEDED y cierre efectivo del proceso JADE (`ARRANQUE_SIN_ARGUMENTOS_OK`). No se crean runs en DBA Lab ni se usa el token personal.
 
-**[IMPLEMENTADO Y VERIFICADO LOCALMENTE]** Se añadieron dos botones en la cabecera. Reiniciar solicita la parada de la ejecución actual y espera el acuse de cierre antes de volver a descubrir y seleccionar nivel. Cada nueva ejecución utiliza un agente, política y memoria de presentación nuevos. Cancelar la selección conserva la ventana disponible. Finalizar y la X coordinan el cierre del run, la plataforma JADE, la ventana y el proceso de la aplicación. Las peticiones ya iniciadas pueden terminar antes de que se aplique la parada.
-
-**Separación:** `ControladorGrid` procesa órdenes fuera del EDT mediante un trabajador único. La vista solo conoce contratos de acciones/presentación. `MotorJadeGrid` adapta el ciclo de vida de JADE y `SesionGrid` proporciona una señal de parada y un acuse de finalización. `AgenteGrid` comprueba esa señal antes del ciclo y antes de decidir; su takeDown comunica el resultado del cierre. No importa Swing ni tiene referencias a componentes gráficos. La selección de nivel en Swing se repite incluso si hay un ID preferido en config.properties; CLI mantiene su comportamiento anterior.
-
-El reinicio no arranca otro agente si el cierre falla o no se confirma a tiempo. Los botones evitan operaciones duplicadas; Finalizar cancela una selección pendiente y también atiende un arranque que termine después de pulsarlo. Si falla el cierre remoto, se advierte al usuario antes de salir. JADE deja hilos internos residuales incluso tras shutDown: el lanzador termina explícitamente el proceso como último paso, después del cierre coordinado. Esto ocurre únicamente al salir de la aplicación gráfica.
-
-**Validación:** compilación con JDK 25/Ant; siete escenarios del controlador con motor simulado; dos sesiones JADE locales; render de botones y comprobación de delegación/bloqueo en Swing; pruebas de navegación originales. Integración adicional con AgenteGrid, cliente HTTP y plataforma JADE reales contra un servidor en loopback y configuración temporal simulada: `[inicio1, accion1, cierre1, inicio2, accion2, cierre2]`. Se solicitó reiniciar/finalizar mientras una respuesta de acción estaba pendiente: ambos cierres precedieron al siguiente arranque/salida y no hubo más movimientos después de completar la acción en curso. No se utilizó el token personal ni se crearon runs en DBA Lab. Sigue pendiente la comprobación interactiva en la ventana contra el laboratorio real.
-
-**Alcance:** solo presentación y coordinación de su ciclo de vida en `codex/interfaz-grid`; Base, Termostato y políticas de navegación no se modifican.
+**Alcance:** rama `codex/interfaz-sin-argumentos` desde main con PR #9 fusionada. Base, Termostato y políticas de navegación no cambian. Pendiente comprobar el flujo completo en una ventana interactiva contra DBA Lab.
 
 ## 8. Antes de un commit / push / merge
 
