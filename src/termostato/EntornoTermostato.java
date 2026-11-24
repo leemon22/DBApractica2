@@ -7,15 +7,16 @@ import base.InfoReto;
 import base.LecturaSensor;
 import base.RespuestaAccion;
 import base.Visualizador;
+
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
 /**
- * Entorno específico para el reto del termostato.
- * Gestiona el descubrimiento del reto, el arranque del run, la consulta de percepciones
- * físicas de temperatura y la traducción de órdenes semánticas a códigos de red de DBA Lab.
+ * Entorno específico para el reto del termostato. Gestiona el descubrimiento del reto, el arranque
+ * del run, la consulta de percepciones físicas de temperatura y la traducción de órdenes semánticas
+ * a códigos de red de DBA Lab.
  */
 public class EntornoTermostato extends Entorno<SensoresTermostato, AccionTermostato> {
 
@@ -30,13 +31,15 @@ public class EntornoTermostato extends Entorno<SensoresTermostato, AccionTermost
     private LimitesTermostato limites;
     private final Optional<Long> challengeIdPreferido;
 
-    // --- Constructores ---
-
     /**
      * Constructor por defecto: lee configuración de "config.properties" y usa la vista de consola.
      */
     public EntornoTermostato() {
-        this(new ClienteHttpDba(), new VisualizadorTermostato(), new Configuracion().getChallengeId());
+        this(new Configuracion());
+    }
+
+    private EntornoTermostato(Configuracion config) {
+        this(new ClienteHttpDba(config), new VisualizadorTermostato(), config.getChallengeId());
     }
 
     /**
@@ -49,20 +52,10 @@ public class EntornoTermostato extends Entorno<SensoresTermostato, AccionTermost
     }
 
     /**
-     * Constructor con cliente y visualizador inyectados.
-     *
-     * @param cliente      cliente HTTP configurado
-     * @param visualizador visualizador de eventos del entorno
-     */
-    public EntornoTermostato(ClienteHttpDba cliente, Visualizador<SensoresTermostato, AccionTermostato> visualizador) {
-        this(cliente, visualizador, Optional.empty());
-    }
-
-    /**
      * Constructor completo con inyección de todas las dependencias.
      *
-     * @param cliente              cliente HTTP configurado
-     * @param visualizador         visualizador de eventos del entorno
+     * @param cliente cliente HTTP configurado
+     * @param visualizador visualizador de eventos del entorno
      * @param challengeIdPreferido identificador de reto opcional
      */
     public EntornoTermostato(
@@ -70,15 +63,19 @@ public class EntornoTermostato extends Entorno<SensoresTermostato, AccionTermost
             Visualizador<SensoresTermostato, AccionTermostato> visualizador,
             Optional<Long> challengeIdPreferido) {
         super(cliente, visualizador);
-        this.challengeIdPreferido = Objects.requireNonNull(challengeIdPreferido, "El challengeIdPreferido no puede ser nulo");
+        this.challengeIdPreferido =
+                Objects.requireNonNull(
+                        challengeIdPreferido, "El challengeIdPreferido no puede ser nulo");
     }
-
-    // --- Implementación de Entorno ---
 
     @Override
     public void iniciarRun() throws IOException, InterruptedException {
-        InfoReto reto = seleccionarReto("THERMOSTAT", challengeIdPreferido)
-                .orElseThrow(() -> new IllegalStateException("No hay retos de termostato compatibles disponibles en DBA Lab"));
+        InfoReto reto =
+                seleccionarReto("THERMOSTAT", challengeIdPreferido)
+                        .orElseThrow(() ->
+                                new IllegalStateException(
+                                        "No hay retos de termostato compatibles disponibles en DBA"
+                                                + " Lab"));
 
         validarCapacidades(reto);
 
@@ -92,11 +89,11 @@ public class EntornoTermostato extends Entorno<SensoresTermostato, AccionTermost
         LecturaSensor lecturaLimites = cliente.consultarSensor(runId, SENSOR_LIMITES);
         LecturaSensor lecturaObjetivo = cliente.consultarSensor(runId, SENSOR_OBJETIVO);
 
-        this.limites = new LimitesTermostato(
-                lecturaLimites.getDouble("lower"),
-                lecturaLimites.getDouble("upper"),
-                lecturaObjetivo.getDouble("celsius")
-        );
+        this.limites =
+                new LimitesTermostato(
+                        lecturaLimites.getDouble("lower"),
+                        lecturaLimites.getDouble("upper"),
+                        lecturaObjetivo.getDouble("celsius"));
     }
 
     @Override
@@ -104,10 +101,8 @@ public class EntornoTermostato extends Entorno<SensoresTermostato, AccionTermost
         LecturaSensor lecturaTemp = cliente.consultarSensor(runId, SENSOR_TEMPERATURA);
         this.estadoActual = lecturaTemp.control();
 
-        SensoresTermostato sensores = new SensoresTermostato(
-                lecturaTemp.getDouble("celsius"),
-                limites
-        );
+        SensoresTermostato sensores =
+                new SensoresTermostato(lecturaTemp.getDouble("celsius"), limites);
 
         visualizador.mostrarPercepcion(sensores);
         return sensores;
@@ -127,8 +122,6 @@ public class EntornoTermostato extends Entorno<SensoresTermostato, AccionTermost
         }
     }
 
-    // --- Traducción de Acciones Semánticas a Códigos de Red ---
-
     private String traducirAccion(AccionTermostato accion) {
         return switch (accion) {
             case ON -> ACCION_REFRIGERACION_ON;
@@ -136,12 +129,9 @@ public class EntornoTermostato extends Entorno<SensoresTermostato, AccionTermost
         };
     }
 
-    // --- Validación de Capacidades del Reto ---
-
     private void validarCapacidades(InfoReto reto) {
         reto.validarCapacidades(
                 List.of(SENSOR_TEMPERATURA, SENSOR_LIMITES, SENSOR_OBJETIVO),
-                List.of(ACCION_REFRIGERACION_ON, ACCION_REFRIGERACION_OFF)
-        );
+                List.of(ACCION_REFRIGERACION_ON, ACCION_REFRIGERACION_OFF));
     }
 }

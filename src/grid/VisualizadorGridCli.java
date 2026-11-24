@@ -3,6 +3,7 @@ package grid;
 import base.EstadoControl;
 import base.InfoReto;
 import base.Visualizador;
+
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -11,9 +12,9 @@ import java.util.Scanner;
 import java.util.Set;
 
 /**
- * Visualizador por consola (CLI) para el bloque Grid.
- * Muestra las métricas de percepción en cada paso, genera una representación ASCII
- * del mapa autoescalable y gestiona la selección interactiva de mapas por teclado.
+ * Visualizador por consola (CLI) para el bloque Grid. Muestra las métricas de percepción en cada
+ * paso, genera una representación ASCII del mapa autoescalable y gestiona la selección interactiva
+ * de mapas por teclado.
  */
 public class VisualizadorGridCli implements Visualizador<SensoresGrid, Direccion> {
 
@@ -31,6 +32,7 @@ public class VisualizadorGridCli implements Visualizador<SensoresGrid, Direccion
     private Posicion posicionObjetivo;
     private Posicion posicionAgente;
     private InfoReto retoActual;
+    private int movimientosAplicados;
 
     @Override
     public InfoReto seleccionarReto(List<InfoReto> retosGrid) {
@@ -40,7 +42,8 @@ public class VisualizadorGridCli implements Visualizador<SensoresGrid, Direccion
 
         for (int i = 0; i < retosGrid.size(); i++) {
             InfoReto reto = retosGrid.get(i);
-            System.out.printf("[%d] Reto ID: %d | Sensores: %d | Acciones: %d%n",
+            System.out.printf(
+                    "[%d] Reto ID: %d | Sensores: %d | Acciones: %d%n",
                     i + 1, reto.id(), reto.sensorCodes().size(), reto.actionCodes().size());
         }
 
@@ -59,7 +62,8 @@ public class VisualizadorGridCli implements Visualizador<SensoresGrid, Direccion
                 System.out.println("Por favor, introduce un número válido.");
             } else {
                 // Entrada no interactiva: seleccionar el primero por defecto
-                System.out.println("\nSin entrada interactiva detectada. Seleccionando reto 1 por defecto.");
+                System.out.println(
+                        "\nSin entrada interactiva detectada. Seleccionando reto 1 por defecto.");
                 seleccion = 1;
                 break;
             }
@@ -73,11 +77,13 @@ public class VisualizadorGridCli implements Visualizador<SensoresGrid, Direccion
     @Override
     public void mostrarRetoEncontrado(InfoReto reto) {
         this.retoActual = reto;
-        System.out.println("Reto Grid seleccionado: " + reto.id() + " (" + reto.environmentType() + ")");
+        System.out.println(
+                "Reto Grid seleccionado: " + reto.id() + " (" + reto.environmentType() + ")");
     }
 
     @Override
     public void mostrarInicio(String runId, EstadoControl estado) {
+        movimientosAplicados = 0;
         System.out.println("Run iniciado en DBA Lab: " + runId);
         System.out.println("Estado inicial: " + estado.runStatus());
     }
@@ -88,6 +94,26 @@ public class VisualizadorGridCli implements Visualizador<SensoresGrid, Direccion
         this.posicionObjetivo = sensores.objetivo();
         this.rastro.add(posicionAgente);
 
+        recordarCeldas(sensores);
+
+        // Trazas de métricas del paso
+        System.out.println("\n--- PERCEPCIÓN DEL AGENTE ---");
+        if (retoActual != null) {
+            System.out.printf(
+                    "Reto actual: ID %d (%s)%n", retoActual.id(), retoActual.environmentType());
+        }
+        System.out.printf(
+                "Posición: %s | Objetivo: %s | Distancia: %d celdas%n",
+                posicionAgente, posicionObjetivo, sensores.distanciaAlObjetivo());
+        System.out.printf(
+                "Energía restante: %d (%s)%n", sensores.energiaRestante(), sensores.modoEnergia());
+        System.out.println("Direcciones bloqueadas: " + sensores.bloqueadas());
+
+        // Renderizado del mapa ASCII dinámico
+        dibujarMapa();
+    }
+
+    private void recordarCeldas(SensoresGrid sensores) {
         // Actualizamos los bumpers detectados alrededor de la posición actual
         for (Direccion d : Direccion.values()) {
             Posicion adyacente = posicionAgente.mover(d);
@@ -97,24 +123,14 @@ public class VisualizadorGridCli implements Visualizador<SensoresGrid, Direccion
                 celdasConocidas.putIfAbsent(adyacente, CHAR_LIBRE);
             }
         }
-
-        // Trazas de métricas del paso
-        System.out.println("\n--- PERCEPCIÓN DEL AGENTE ---");
-        if (retoActual != null) {
-            System.out.printf("Reto actual: ID %d (%s)%n", retoActual.id(), retoActual.environmentType());
-        }
-        System.out.printf("Posición: %s | Objetivo: %s | Distancia: %d celdas%n",
-                posicionAgente, posicionObjetivo, sensores.distanciaAlObjetivo());
-        System.out.printf("Energía restante: %d (%s)%n", sensores.energiaRestante(), sensores.modoEnergia());
-        System.out.println("Direcciones bloqueadas: " + sensores.bloqueadas());
-
-        // Renderizado del mapa ASCII dinámico
-        dibujarMapa();
     }
 
     @Override
     public void mostrarAccion(Direccion accion, String resultado, EstadoControl nuevoEstado) {
-        System.out.printf("Movimiento: %s | Resultado: %s | Estado: %s%n",
+        // Contar la confirmación incluye revisitas y el último paso, sin otra percepción.
+        if ("APPLIED".equals(resultado)) movimientosAplicados++;
+        System.out.printf(
+                "Movimiento: %s | Resultado: %s | Estado: %s%n",
                 accion, resultado, nuevoEstado.runStatus());
     }
 
@@ -126,14 +142,16 @@ public class VisualizadorGridCli implements Visualizador<SensoresGrid, Direccion
     @Override
     public void mostrarFin(EstadoControl estadoFinal) {
         System.out.println("\n========================================");
-        System.out.println("FIN DE LA EJECUCIÓN GRID" + (retoActual != null ? " (Reto ID: " + retoActual.id() + ")" : "") + ": " + estadoFinal.runStatus());
+        System.out.println(
+                "FIN DE LA EJECUCIÓN GRID"
+                        + (retoActual != null ? " (Reto ID: " + retoActual.id() + ")" : "")
+                        + ": "
+                        + estadoFinal.runStatus());
         estadoFinal.motivo().ifPresent(motivo -> System.out.println("Motivo oficial: " + motivo));
         System.out.println("Total de celdas descubiertas: " + celdasConocidas.size());
-        System.out.println("Longitud del recorrido: " + rastro.size() + " pasos");
+        System.out.println("Longitud del recorrido: " + movimientosAplicados + " pasos");
         System.out.println("========================================\n");
     }
-
-    // --- Renderizado ASCII Escalable ---
 
     private void dibujarMapa() {
         if (posicionAgente == null || posicionObjetivo == null) {
@@ -159,7 +177,10 @@ public class VisualizadorGridCli implements Visualizador<SensoresGrid, Direccion
         int yInicio = Math.max(0, minY - 1);
         int yFin = maxY + 1;
 
-        System.out.println("\nMapa explorado" + (retoActual != null ? " (Reto ID: " + retoActual.id() + ")" : "") + ":");
+        System.out.println(
+                "\nMapa explorado"
+                        + (retoActual != null ? " (Reto ID: " + retoActual.id() + ")" : "")
+                        + ":");
         // Encabezado con coordenadas X
         System.out.print("    ");
         for (int x = xInicio; x <= xFin; x++) {
@@ -167,42 +188,27 @@ public class VisualizadorGridCli implements Visualizador<SensoresGrid, Direccion
         }
         System.out.println();
 
-        System.out.print("   +");
-        for (int x = xInicio; x <= xFin; x++) {
-            System.out.print("--");
-        }
-        System.out.println("-+");
+        String borde = "   +" + "--".repeat(xFin - xInicio + 1) + "-+";
+        System.out.println(borde);
 
         // Filas del mapa
         for (int y = yInicio; y <= yFin; y++) {
             System.out.printf("%2d | ", y);
             for (int x = xInicio; x <= xFin; x++) {
-                Posicion p = new Posicion(x, y);
-                char glifo;
-
-                if (p.equals(posicionAgente)) {
-                    glifo = CHAR_AGENTE;
-                } else if (p.equals(posicionObjetivo)) {
-                    glifo = CHAR_OBJETIVO;
-                } else if (rastro.contains(p)) {
-                    // El rastro transitado tiene prioridad sobre las celdas conocidas libres para no sobreescribir el camino
-                    glifo = CHAR_TRANSITADO;
-                } else if (celdasConocidas.containsKey(p)) {
-                    glifo = celdasConocidas.get(p);
-                } else {
-                    glifo = CHAR_DESCONOCIDO;
-                }
-
-                System.out.print(glifo + " ");
+                System.out.print(simboloEn(new Posicion(x, y)) + " ");
             }
             System.out.println("|");
         }
 
-        System.out.print("   +");
-        for (int x = xInicio; x <= xFin; x++) {
-            System.out.print("--");
-        }
-        System.out.println("-+");
-        System.out.println("Leyenda: A = Agente, X = Objetivo, # = Muro, . = Rastro, ? = Desconocido\n");
+        System.out.println(borde);
+        System.out.println(
+                "Leyenda: A = Agente, X = Objetivo, # = Muro, . = Rastro, ? = Desconocido\n");
+    }
+
+    private char simboloEn(Posicion posicion) {
+        if (posicion.equals(posicionAgente)) return CHAR_AGENTE;
+        if (posicion.equals(posicionObjetivo)) return CHAR_OBJETIVO;
+        if (rastro.contains(posicion)) return CHAR_TRANSITADO;
+        return celdasConocidas.getOrDefault(posicion, CHAR_DESCONOCIDO);
     }
 }

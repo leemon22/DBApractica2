@@ -17,21 +17,31 @@ public class LanzadorGrid {
             perfil.setParameter(Profile.GUI, "false");
             perfil.setParameter(Profile.MAIN_PORT, System.getProperty("dba.jade.port", "1099"));
             AgentContainer contenedor = runtime.createMainContainer(perfil);
-            if (contenedor == null) throw new IllegalStateException("No se pudo iniciar JADE; comprueba el puerto");
-            AgentController agente = contenedor.createNewAgent("AgenteGrid", "grid.AgenteGrid", null);
+            if (contenedor == null)
+                throw new IllegalStateException("No se pudo iniciar JADE; comprueba el puerto");
+            AgentController agente =
+                    contenedor.createNewAgent("AgenteGrid", "grid.AgenteGrid", null);
             agente.start();
             // Cerrar la plataforma desde fuera del agente, después de su takeDown.
-            Thread cierre = new Thread(() -> {
-                try {
-                    while (true) {
-                        try { agente.getState(); }
-                        catch (StaleProxyException terminado) { break; }
-                        Thread.sleep(100);
-                    }
-                    contenedor.kill();
-                    runtime.shutDown();
-                } catch (Exception e) { System.err.println("No se pudo cerrar JADE: " + e.getMessage()); }
-            }, "cierre-grid");
+            Thread cierre =
+                    new Thread(
+                            () -> {
+                                try {
+                                    while (true) {
+                                        try {
+                                            agente.getState();
+                                        } catch (StaleProxyException terminado) {
+                                            break;
+                                        }
+                                        Thread.sleep(100);
+                                    }
+                                    contenedor.kill();
+                                    runtime.shutDown();
+                                } catch (Exception e) {
+                                    System.err.println("No se pudo cerrar JADE: " + e.getMessage());
+                                }
+                            },
+                            "cierre-grid");
             cierre.start();
         } catch (Exception e) {
             System.err.println("Error al arrancar Grid: " + e.getMessage());

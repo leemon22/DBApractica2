@@ -3,20 +3,16 @@ package base;
 import java.util.List;
 
 /**
- * Encapsula la información descriptiva y capacidades de un reto anunciado por DBA Lab.
- * Permite al entorno comprobar compatibilidad de sensores y acciones antes de iniciar un run.
+ * Encapsula la información descriptiva y capacidades de un reto anunciado por DBA Lab. Permite al
+ * entorno comprobar compatibilidad de sensores y acciones antes de iniciar un run.
  *
- * @param id              identificador numérico del reto
+ * @param id identificador numérico del reto
  * @param environmentType tipo de entorno (p. ej. "THERMOSTAT", "GRID_2D")
- * @param sensorCodes     lista de códigos oficiales de sensores disponibles
- * @param actionCodes     lista de códigos oficiales de acciones disponibles
+ * @param sensorCodes lista de códigos oficiales de sensores disponibles
+ * @param actionCodes lista de códigos oficiales de acciones disponibles
  */
 public record InfoReto(
-        long id,
-        String environmentType,
-        List<String> sensorCodes,
-        List<String> actionCodes
-) {
+        long id, String environmentType, List<String> sensorCodes, List<String> actionCodes) {
 
     public InfoReto {
         sensorCodes = sensorCodes != null ? List.copyOf(sensorCodes) : List.of();
@@ -50,18 +46,21 @@ public record InfoReto(
      * @param accionesNecesarias colección de identificadores de acciones imprescindibles
      * @throws IllegalStateException si falta algún sensor o acción obligatoria
      */
-    public void validarCapacidades(Iterable<String> sensoresNecesarios, Iterable<String> accionesNecesarias) {
+    public void validarCapacidades(
+            Iterable<String> sensoresNecesarios, Iterable<String> accionesNecesarias) {
         if (sensoresNecesarios != null) {
             for (String sensor : sensoresNecesarios) {
                 if (!contieneSensor(sensor)) {
-                    throw new IllegalStateException("Sensor requerido no disponible en el reto " + id + ": " + sensor);
+                    throw new IllegalStateException(
+                            "Sensor requerido no disponible en el reto " + id + ": " + sensor);
                 }
             }
         }
         if (accionesNecesarias != null) {
             for (String accion : accionesNecesarias) {
                 if (!contieneAccion(accion)) {
-                    throw new IllegalStateException("Acción requerida no disponible en el reto " + id + ": " + accion);
+                    throw new IllegalStateException(
+                            "Acción requerida no disponible en el reto " + id + ": " + accion);
                 }
             }
         }

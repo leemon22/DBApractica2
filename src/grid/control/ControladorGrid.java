@@ -1,82 +1,117 @@
 package grid.control;
 
-import base.InfoReto;
 import base.Visualizador;
+
 import grid.Direccion;
 import grid.SensoresGrid;
-import java.util.List;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicBoolean;
 
-/** Buzón de órdenes de presentación. No crea agentes ni conserva referencias a JADE. */
+/**
+ * Comunica los botones de Swing con el agente. No crea agentes ni hace peticiones HTTP. Los métodos
+ * sincronizados protegen el estado compartido por ambos hilos.
+ */
 public final class ControladorGrid {
-    public interface Acciones { void reiniciar(); void finalizar(); }
     public interface Vista extends Visualizador<SensoresGrid, Direccion> {
         void mostrarOperacion(String mensaje, boolean ocupado, boolean finalizando);
+
         void cancelarSeleccion();
+
         void cerrarVentana(String aviso);
     }
-    public static final class SeleccionCancelada extends RuntimeException { }
-    private enum Orden { INICIAR, SALIR }
+
+    public static final class SeleccionCancelada extends RuntimeException {}
+
+    private enum Estado {
+        PREPARANDO,
+        EJECUTANDO,
+        ESPERANDO,
+        BLOQUEADO,
+        SALIENDO
+    }
+
     private final Vista vista;
-    private final LinkedBlockingQueue<Orden> ordenes = new LinkedBlockingQueue<>();
-    private final AtomicBoolean ocupado = new AtomicBoolean(true);
-    private final AtomicBoolean salir = new AtomicBoolean();
-    private final AtomicBoolean parar = new AtomicBoolean();
-    private volatile boolean bloqueado;
+    private Estado estado = Estado.PREPARANDO;
+    private boolean inicioPendiente = true;
 
     public ControladorGrid(Vista vista) {
         this.vista = vista;
-        ordenes.add(Orden.INICIAR);
     }
-    public Acciones acciones() {
-        return new Acciones() {
-            @Override public void reiniciar() { ControladorGrid.this.reiniciar(); }
-            @Override public void finalizar() { ControladorGrid.this.finalizar(); }
-        };
-    }
-    public void reiniciar() {
-        if (salir.get() || bloqueado || !ocupado.compareAndSet(false, true)) return;
-        parar.set(true);
+
+    public synchronized void reiniciar() {
+        if (estado != Estado.EJECUTANDO && estado != Estado.ESPERANDO) {
+            return;
+        }
+        estado = Estado.PREPARANDO;
+        inicioPendiente = true;
         vista.mostrarOperacion("Deteniendo la ejecución antes de elegir nivel…", true, false);
-        ordenes.offer(Orden.INICIAR);
+        notifyAll();
     }
-    public void finalizar() {
-        if (!salir.compareAndSet(false, true)) return;
-        parar.set(true);
+
+    public synchronized void finalizar() {
+        if (estado == Estado.SALIENDO) {
+            return;
+        }
+        estado = Estado.SALIENDO;
         vista.mostrarOperacion("Finalizando: esperando el cierre de la ejecución…", true, true);
         vista.cancelarSeleccion();
-        ordenes.offer(Orden.SALIR);
+        notifyAll();
     }
-    /** Se espera en el hilo del agente; el EDT permanece disponible para los botones. */
-    public boolean esperarInicio() throws InterruptedException {
-        while (true) {
-            if (salir.get()) return false;
-            Orden orden = ordenes.take();
-            if (orden == Orden.SALIR || salir.get()) return false;
-            if (bloqueado) continue;
-            parar.set(false);
-            ocupado.set(true);
-            vista.mostrarOperacion("Buscando niveles disponibles…", true, false);
-            return true;
+
+    /** Espera en el hilo del agente; wait libera el monitor para que respondan los botones. */
+    public synchronized boolean esperarInicio() throws InterruptedException {
+        while (!inicioPendiente && estado != Estado.SALIENDO) {
+            wait();
         }
+        if (estado == Estado.SALIENDO) {
+            return false;
+        }
+        inicioPendiente = false;
+        vista.mostrarOperacion("Buscando niveles disponibles…", true, false);
+        return true;
     }
-    public boolean paradaSolicitada() { return parar.get(); }
-    public boolean salidaSolicitada() { return salir.get(); }
-    public void iniciada() {
-        ocupado.set(false);
-        if (!salir.get()) vista.mostrarOperacion("Ejecución iniciada", false, false);
+
+    public synchronized boolean paradaSolicitada() {
+        return estado == Estado.PREPARANDO
+                || estado == Estado.BLOQUEADO
+                || estado == Estado.SALIENDO;
     }
-    public void enEspera(String mensaje) {
-        if (salir.get() || !ordenes.isEmpty()) return;
-        ocupado.set(false);
+
+    public synchronized boolean salidaSolicitada() {
+        return estado == Estado.SALIENDO;
+    }
+
+    public synchronized void iniciada() {
+        if (estado == Estado.SALIENDO) {
+            return;
+        }
+        estado = Estado.EJECUTANDO;
+        vista.mostrarOperacion("Ejecución iniciada", false, false);
+    }
+
+    public synchronized void enEspera(String mensaje) {
+        if (estado == Estado.SALIENDO || inicioPendiente) {
+            return;
+        }
+        estado = Estado.ESPERANDO;
         vista.mostrarOperacion(mensaje, false, false);
     }
-    public void bloquear(String mensaje) {
-        bloqueado = true;
-        vista.mostrarOperacion(mensaje + ". Revisa DBA Lab antes de iniciar otro run.", true, salir.get());
+
+    /** Si no se cierra el run anterior, solo se permite salir; nunca abrir otro. */
+    public synchronized void bloquear(String mensaje) {
+        if (estado != Estado.SALIENDO) {
+            estado = Estado.BLOQUEADO;
+        }
+        inicioPendiente = false;
+        vista.mostrarOperacion(
+                mensaje + ". Revisa DBA Lab antes de iniciar otro run.",
+                true,
+                estado == Estado.SALIENDO);
     }
+
     public void cerrarVentana(Throwable fallo) {
-        vista.cerrarVentana(fallo == null ? null : "No se pudo confirmar el cierre del run: " + fallo.getMessage());
+        String aviso =
+                fallo == null
+                        ? null
+                        : "No se pudo confirmar el cierre del run: " + fallo.getMessage();
+        vista.cerrarVentana(aviso);
     }
 }

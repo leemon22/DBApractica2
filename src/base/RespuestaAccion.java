@@ -7,14 +7,10 @@ import java.util.Optional;
  * Encapsula la respuesta obtenida tras enviar una acción física a DBA Lab.
  *
  * @param actionStatus resultado de la acción ("APPLIED" o "REJECTED")
- * @param reasonCode   código de motivo si fue rechazada o finalizó el run (puede ser nulo)
- * @param control      nuevo estado de control del run
+ * @param reasonCode código de motivo si fue rechazada o finalizó el run (puede ser nulo)
+ * @param control nuevo estado de control del run
  */
-public record RespuestaAccion(
-        String actionStatus,
-        String reasonCode,
-        EstadoControl control
-) {
+public record RespuestaAccion(String actionStatus, String reasonCode, EstadoControl control) {
 
     public RespuestaAccion {
         Objects.requireNonNull(actionStatus, "El actionStatus no puede ser nulo");

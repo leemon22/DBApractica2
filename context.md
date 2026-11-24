@@ -2,7 +2,7 @@
 # DBA · Práctica 2 — Contexto compartido y guía de continuidad
 
 **Asignatura:** Diseño Basado en Agentes (UGR) · Curso 2026/2027  
-**Última actualización del contexto:** 10/11/2026  
+**Última actualización del contexto:** 24/11/2026
 **Uso previsto:** incorporar este documento al repositorio y proporcionarlo como contexto a los asistentes de IA de los cuatro integrantes. **No sustituye los guiones oficiales ni el código fuente.**
 
 > **Regla de trabajo para cualquier asistente:** distinguir entre **requisito del profesor**, **decisión del grupo**, **hecho verificado** y **pendiente de verificar**. Nunca tratar una compilación como prueba de funcionamiento, ni una ejecución correcta como validación definitiva del diseño. Revisar primero la versión más reciente de la rama correspondiente y los documentos docentes antes de proponer cambios.
@@ -337,14 +337,108 @@ La vista usa `MapaExplorado` y `PanelMapa`: memoria de celdas percibidas, escala
 
 - `LanzadorGrid` crea `AgenteGrid` con `null`, sin parámetros de aplicación. No construye vistas ni sesiones.
 - `AgenteGrid.setup()` pregunta el tipo de interfaz (Swing o consola); `iniciar()` crea la presentación mediante la fábrica y construye su entorno y política. No usa getArguments ni importa componentes Swing.
-- `FabricaPresentacionGrid` encapsula la elección en EDT y la creación concreta de la vista y el buzón. El agente entrega esa presentación a EntornoGrid mediante construcción Java ordinaria. La fábrica crea objetos nuevos; no mantiene un registro global ni entrega argumentos ocultos. Cerrar el selector cancela el agente sin crear run; las propiedades dba.grid.ui permiten elegir explícitamente consola/Swing sin pregunta, y el modo headless usa consola.
-- `ControladorGrid` es un buzón local de órdenes de reinicio/salida. Se eliminan `SesionGrid` y `MotorJadeGrid`.
+- `FabricaPresentacionGrid` encapsula la elección en EDT y la creación concreta de la vista y el controlador. El agente entrega esa presentación a EntornoGrid mediante construcción Java ordinaria. La fábrica crea objetos nuevos; no mantiene un registro global ni entrega argumentos ocultos. Cerrar el selector cancela el agente sin crear run; las propiedades dba.grid.ui permiten elegir explícitamente consola/Swing sin pregunta, y el modo headless usa consola.
+- `ControladorGrid` coordina el estado local y las solicitudes de reinicio/salida. Se eliminan `SesionGrid` y `MotorJadeGrid`.
 - `BucleAplicacionGrid` conserva el agente entre runs en modo gráfico: cierra el anterior antes de iniciar otro y reinicia la política. La vista y los sensores eliminan sus datos anteriores. En CLI se mantiene un único run.
 - Finalizar despierta la espera de órdenes y cancela el selector. El agente cierra su run y la presentación; un hilo externo del lanzador detecta la terminación y cierra JADE. Si el cierre falla, se impide otro inicio y se informa al salir.
 
 **Validación local:** compilación Ant/JDK 25; pruebas del controlador/entorno/bucle con cliente simulado; políticas V1/V2 originales; render Swing. Prueba adicional del lanzador real, agente creado sin argumentos y servidor HTTP en loopback, desde directorio temporal con credencial ficticia: run simulado SUCCEEDED y cierre efectivo del proceso JADE (`ARRANQUE_SIN_ARGUMENTOS_OK`). No se crean runs en DBA Lab ni se usa el token personal.
 
 **Alcance:** rama `codex/interfaz-sin-argumentos` desde main con PR #9 fusionada. Base, Termostato y políticas de navegación no cambian. Pendiente comprobar el flujo completo en una ventana interactiva contra DBA Lab.
+
+### 7.7 Limpieza de la interfaz — 24/11/2026
+
+**Petición del usuario:** simplificar, documentar y dejar código legible conservando el comportamiento. Esta revisión se aplica a nuestra aportación de interfaz e integración; no modifica Base, Termostato ni las políticas de navegación de los compañeros.
+
+- Sustituidas la cola de órdenes y varias banderas atómicas del controlador por un estado enumerado y una solicitud de inicio protegidos con `synchronized`. La espera libera el monitor y Finalizar la despierta.
+- Eliminado el adaptador de acciones: los dos botones reciben referencias a métodos con `Runnable`.
+- Reunida la espera de resultados de Swing en un único método; las actualizaciones normales siguen siendo asíncronas.
+- Separada la construcción visual en cabecera, indicadores, mapa y pie. Descomprimidos métodos e instrucciones para facilitar su lectura.
+- Centralizado el cierre gráfico en `terminarEjecucion()`, evitando notificaciones de fin repetidas durante el cierre del bucle y del agente. El modo consola conserva el comportamiento base.
+- Divididas las pruebas del controlador en escenarios con nombre y añadida la comprobación de una sola notificación final por run, incluso si se pide cerrar varias veces.
+
+**Verificación local:** compilación limpia Ant con JDK 25; pruebas de controlador, políticas V1/V2, mapa Swing y arranque real de JADE contra un servidor HTTP local. El render del panel usa datos simulados. Estas comprobaciones no requieren VPN ni token personal y no equivalen a validar una sesión gráfica interactiva contra DBA Lab.
+
+Los cambios de esta limpieza quedan locales en `codex/interfaz-sin-argumentos`, sin commit ni push.
+
+### 7.8 Limpieza del resto del proyecto — 24/11/2026
+
+**Alcance autorizado por el usuario:** extender la limpieza a todo el proyecto, incluidos Base, Termostato y las políticas. Se continúa desde los cambios locales de la interfaz, ahora en la rama `codex/limpieza-proyecto`. Esta petición amplía el alcance limitado de 7.7.
+
+**Cambios:**
+
+- Base: una sola preparación y validación HTTP para GET/POST; lectura común de códigos y campos opcionales JSON; conversión de valores sin bloques anidados repetidos. Se conservan endpoints, retardo efectivo de 50 ms, timeouts y ausencia de reintentos.
+- Configuración: lectura de obligatorios compartida y una carga por entorno. Eliminados el alias `getUrlLaboratorio`, la consulta arbitraria `getPropiedad` y `buscarRetoPorId` del cliente, sin consumidores en el proyecto. Los accesores opcionales sin uso de `LecturaSensor` se sustituyen por accesos obligatorios directos, conservando conversiones y diagnósticos.
+- Ciclo común: `BucleAgentico` ofrece las comprobaciones de actividad predeterminadas. Termostato lo instancia directamente; se elimina `BucleAgenticoTermostato`, que solo duplicaba esas comprobaciones. `Agente` conserva el entorno y entrega el bucle a JADE sin mantener otro campo innecesario.
+- Entornos y presentación: eliminados constructores y caminos de creación sin uso. El agente sigue eligiendo y creando su presentación; la vista permanece desacoplada y no se pasa por argumentos JADE.
+- Grid: V1 mantiene su papel de referencia; `d0` pasa a llamarse `distanciaImpacto`. V2 reutiliza la dirección primaria ya calculada al iniciar el rodeo y simplifica el empate diagonal sin cambiar su resultado. Se elimina una comprobación privada de orientación que ya garantiza `aplicar()`. No se cambian estrategias, desempates ni reinicios de memoria.
+- Consola: separada la memoria percibida del render, simplificada la selección del símbolo y reutilizado el borde ASCII.
+- Formato uniforme, comentarios centrados en decisiones, retirada de separadores y documentación redundante. README ajustado a clases y métodos actuales.
+- Ant: objetivo `pruebas-locales`, también accesible con `make test`, que ejecuta las pruebas en procesos aislados. El arranque JADE utiliza un directorio temporal con configuración ficticia. Se sustituye el texto de ejemplo sin uso de `build.xml` por este objetivo.
+
+**Verificado localmente:** compilación limpia y seis programas de prueba superados con JDK 25: infraestructura/configuración, Termostato, políticas Grid, controlador, mapa Swing y arranque JADE simulado. Las pruebas nuevas comprueban el protocolo HTTP y el ciclo del termostato, además del rechazo de capacidades incompletas antes de crear un run.
+
+**Comparación antes/después:** 2.000 mapas generados con semilla 24, lados entre 4 y 12 y obstáculos con probabilidad 0,25; ambas políticas, máximo 200 movimientos por recorrido. En total 4.000 recorridos. Se comparó la secuencia completa de movimientos y la terminación (llegada o excepción), con la misma huella SHA-256 antes y después: `d9e7c796bd26ace9459d6a45d7cb3c2b9beaebc7dee5c3cc0166ec38413545b8`. Es una comprobación de conservación de comportamiento en esos casos, no una afirmación de que todos los mapas sean resolubles.
+
+**Limitaciones:** sin ejecuciones nuevas en DBA Lab y sin usar el token personal. No se han revalidado los 18 retos oficiales ni la interacción gráfica real. Se conserva también la diferencia preexistente entre V1 (un cambio de mano por ejecución) y V2 (restablecido entre rodeos). La consola sigue calculando su resumen del recorrido a partir del conjunto de celdas visitadas; ese contador no equivale a contar movimientos cuando hay revisitas. Corregirlo supondría un cambio funcional aparte.
+
+**Publicación:** cambios locales, sin commit ni push. Conviene que el responsable de Base revise su diff antes de integrarlo.
+
+### 7.9 Segunda simplificación — 24/11/2026
+
+**Petición del usuario:** reducir el código y hacerlo más sencillo de seguir.
+
+- Se reúnen las responsabilidades de `BucleAplicacionGrid` y `BucleAgenticoGrid` en una sola clase `BucleAgenticoGrid`, que extiende directamente el bucle común. Se elimina un nivel de herencia. Conserva navegación con V2, parada solicitada, reinicio, bloqueo tras cierre fallido y cierre del agente.
+- V1 deja `src/grid` y se conserva en `test/grid/PoliticaGrid.java`. La aplicación solo compila V2; las pruebas siguen comparando ambas versiones. No se cambia el algoritmo de ninguna de las dos.
+- Comentarios de Base más breves: cada operación conserva su propósito y sus condiciones relevantes, eliminando descripciones repetidas de parámetros cuyo nombre ya las explica.
+- README y pruebas actualizados a la nueva organización. La vista continúa desacoplada del agente.
+
+**Comprobación:** objetivo `clean pruebas-locales` con las seis pruebas locales y JDK 25. No se utilizan VPN ni credenciales reales; no se revalidan aquí los 18 mapas oficiales.
+
+Sigue en `codex/limpieza-proyecto`, sin commit ni push.
+
+### 7.10 Revisión de cumplimiento — 24/11/2026
+
+Contraste del código local con `Pr2 (1).pdf`, las tres guías API del Escritorio y las indicaciones de clase transmitidas por el usuario. Esta revisión no cambia la lógica del programa.
+
+**Comprobado en código:** Java/JADE; descubrimiento de retos y validación de capacidades; decisiones por sensores sin mapa previo; cliente HTTP común; agente creado con argumentos JADE `null`; presentación construida por el propio agente mediante fábrica; vista desacoplada; celdas desconocidas, libres y bloqueadas con colores distintos, agente y objetivo superpuestos; escala según mapa y ventana; reinicio y cierre. El guion pide organización clara y reutilizable, sin imponer una lista concreta de clases Java.
+
+**Incumplimiento confirmado de la guía API:** el estado se comprueba antes de percibir y después de actuar, pero falta detenerse si se vuelve terminal durante las lecturas. Además, Grid continúa con los sensores restantes tras recibir un estado terminal y los sensores iniciales de ambos entornos no actualizan siempre el estado del entorno.
+
+Reproducción local con cliente ficticio, sin red ni credenciales: devolver EXPIRED al consultar `grid.position` provoca después dos lecturas (`grid.bumpers`, `grid.energy`) y un intento de acción. Devolver EXPIRED en `thermostat.temperature` provoca un intento de acción. La guía común exige detener percepciones y acciones al recibir estado terminal. Las seis pruebas previas no cubrían este caso. Prioridad: comprobar y propagar control tras cada respuesta y parar antes de decidir/actuar.
+
+**Documentación y decisiones por revisar:** el texto histórico de Base describe `BucleAgentico` como abstracto; la limpieza lo hizo concreto para reutilizar su implementación en Termostato. No se ha encontrado esa exigencia de clases concretas/abstractas en el guion: distinguir una eventual corrección oral del profesor de la descripción histórica del equipo. V2 conserva el cambio de mano por rodeo, diferente de la salvaguarda inicial de un cambio por ejecución. La consola conserva el contador de celdas únicas etiquetado como pasos.
+
+**Pendiente de evidencia:** éxito oficial de los 18 retos con esta versión local, prueba interactiva completa de la GUI y presentación/vídeo de cinco minutos. No se deduce su cumplimiento de la compilación, de mapas generados ni de resultados antiguos. Los plazos históricos del guion deben leerse junto con el aplazamiento de una semana comunicado después por el usuario.
+
+### 7.11 Resultados aportados por el usuario — 24/11/2026
+
+Evidencia: fragmentos de la salida de NetBeans pegados por el usuario. No son ejecuciones nuevas iniciadas por el asistente. Los fragmentos no incluyen runId ni identificador de commit; no permiten atribuir el resultado a una versión exacta.
+
+| Reto | Resultado visible | Observaciones |
+| --- | --- | --- |
+| 13 | ACTIVE, sin resultado final aportado | Movimiento NORTE confirmado entre (30,47) y (30,46); distancia 57 → 56, energía percibida 158 → 157. La diferencia no aísla el coste de lecturas y movimiento. |
+| 14 | SUCCEEDED, TARGET_REACHED | Última percepción en (3,14), objetivo (3,15), energía 629 y ESTE bloqueado. Última acción SUR, APPLIED. La salida muestra 375 celdas descubiertas y 143 «pasos». Terminación del agente y cierre de JADE sin error visible; Ant informa BUILD SUCCESSFUL, duración total aproximada 1 min 10 s. |
+
+La energía 629 corresponde a la percepción anterior al último movimiento; no es una lectura del saldo final. El valor 143 del resumen se obtiene en el código actual de `rastro.size()`: cuenta posiciones distintas registradas, no movimientos aplicados cuando hay revisitas. No presentarlo como longitud exacta del recorrido. El fragmento del reto 14 acredita ese éxito; no acredita el final del reto 13 ni la resolución de los 18 retos.
+
+### 7.12 Corrección del recorrido en consola — 24/11/2026
+
+Petición del usuario tras revisar el resultado del reto 14: corregir la longitud del recorrido, que se calculaba con el tamaño del conjunto de posiciones percibidas.
+
+`VisualizadorGridCli` dispone ahora de un contador independiente `movimientosAplicados`: se pone a cero al iniciar el run y aumenta una vez por respuesta de acción APPLIED, incluidas revisitas y la última acción que alcanza el objetivo. Lecturas repetidas, rechazos y mostrar el resumen no lo incrementan. `rastro` se mantiene para el dibujo. No se modifica la navegación ni se realizan ejecuciones en DBA Lab.
+
+Prueba nueva `test/grid/VisualizadorGridCliPrueba.java`, incluida en `ant pruebas-locales`: recorrido de cuatro movimientos aplicados, una revisita, un rechazo y llegada sin lectura posterior; solo dos posiciones distintas aparecen en las percepciones. El resumen debe indicar cuatro pasos, seguir indicando cuatro al repetirlo y volver a cero en el siguiente run. También comprueba que las percepciones repetidas no sumen pasos. Verificación: compilación limpia y las siete pruebas locales superadas con JDK 25.
+
+Esta corrección sustituye para futuras ejecuciones la limitación del contador indicada en 7.8, 7.10 y 7.11. Los 143 «pasos» del fragmento anterior del reto 14 siguen siendo un dato producido por la versión antigua: el total real solo puede recuperarse contando los APPLIED de su traza completa. El SUCCEEDED de ese reto sigue siendo válido. Permanece pendiente la corrección independiente de las peticiones posteriores a un estado terminal descrita en 7.10.
+
+Cambios locales en `codex/limpieza-proyecto`, sin commit ni push.
+
+### 7.13 Validación real del contador aportada por el usuario — 24/11/2026
+
+Nueva salida de NetBeans pegada por el usuario, con cierre a las 22:54:14: reto 14, resultado SUCCEEDED y motivo TARGET_REACHED. Última acción SUR, APPLIED, desde la percepción (3,14) hacia el objetivo (3,15). Resumen: 375 celdas descubiertas y 162 pasos con el contador de movimientos aplicados corregido. Última energía percibida antes de la acción final: 629. El agente y JADE finalizan sin errores visibles; BUILD SUCCESSFUL, tiempo total aproximado 1 min 11 s.
+
+La nueva salida confirma el uso del resumen corregido en una ejecución real satisfactoria. La navegación no se modificó al corregir el contador. La diferencia 143 → 162 no debe interpretarse como un empeoramiento del algoritmo ni como exactamente 19 revisitas: las métricas anteriores eran distintas. El fragmento no contiene runId ni la traza completa de acciones. No acredita los demás retos ni el saldo de energía posterior al último movimiento.
 
 ## 8. Antes de un commit / push / merge
 
