@@ -9,10 +9,10 @@
 
 ## 1. Objetivo y material de referencia
 
-**Guion:** *Práctica 2. Percepción y acción en entornos virtuales: del termostato a la navegación en 2D*, Manuel Jesús Cobo Martín.  
-**Documentación docente entregada:**
+**Guion:** *Práctica 2. Percepción y acción en entornos virtuales: del termostato a la navegación en 2D*, Manuel Jesús Cobo Martín. 
 
-- `Ingenieria.pdf`: enunciado general, calendario, mapas, evaluación.
+**Documentación docente entregada:**
+- `Pr2.pdf`: enunciado general, calendario, mapas, evaluación.
 - `guia-api-dba-lab.md`: acceso, ciclo de ejecución, rutas, autenticación, respuestas y errores.
 - `guia-api-termostato.md`: sensores, acciones y objetivo del termostato.
 - `guia-api-grid.md`: percepciones, desplazamiento, obstáculos y energía de Grid.
