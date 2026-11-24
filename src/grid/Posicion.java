@@ -3,9 +3,9 @@ package grid;
 import java.util.Objects;
 
 /**
- * Celda de la cuadrícula bidimensional de Grid.
- * Coordenada x representa la columna desde la izquierda e y la fila desde arriba.
- * Inmutable: cualquier desplazamiento devuelve una nueva instancia.
+ * Celda de la cuadrícula bidimensional de Grid. Coordenada x representa la columna desde la
+ * izquierda e y la fila desde arriba. Inmutable: cualquier desplazamiento devuelve una nueva
+ * instancia.
  *
  * @param x columna (desde la izquierda, 0-indexada)
  * @param y fila (desde arriba, 0-indexada)
@@ -13,8 +13,8 @@ import java.util.Objects;
 public record Posicion(int x, int y) {
 
     /**
-     * Calcula la distancia Manhattan (|dx| + |dy|) hacia otra celda,
-     * correspondiente a la heurística h(n) para la navegación sin diagonales.
+     * Calcula la distancia Manhattan (|dx| + |dy|) hacia otra celda, correspondiente a la
+     * heurística h(n) para la navegación sin diagonales.
      *
      * @param otra celda de destino
      * @return distancia Manhattan en número de celdas

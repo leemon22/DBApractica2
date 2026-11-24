@@ -7,7 +7,8 @@ import jade.wrapper.AgentContainer;
 import jade.wrapper.AgentController;
 
 /**
- * Punto de entrada del bloque Termostato: arranca JADE y crea el agente termostato.AgenteTermostato.
+ * Punto de entrada del bloque Termostato: arranca JADE y crea el agente
+ * termostato.AgenteTermostato.
  */
 public class LanzadorTermostato {
 
@@ -20,22 +21,17 @@ public class LanzadorTermostato {
             Profile perfil = new ProfileImpl();
             perfil.setParameter(Profile.GUI, "true");
 
-            AgentContainer contenedor =
-                    runtime.createMainContainer(perfil);
+            AgentContainer contenedor = runtime.createMainContainer(perfil);
 
             // Crear e iniciar el agente del termostato.
-            AgentController agente = contenedor.createNewAgent(
-                    "AgenteTermostato",
-                    "termostato.AgenteTermostato",
-                    null
-            );
+            AgentController agente =
+                    contenedor.createNewAgent(
+                            "AgenteTermostato", "termostato.AgenteTermostato", null);
 
             agente.start();
 
         } catch (Exception e) {
-            System.err.println(
-                    "Error al iniciar JADE: " + e.getMessage()
-            );
+            System.err.println("Error al iniciar JADE: " + e.getMessage());
             e.printStackTrace();
         }
     }

@@ -5,8 +5,8 @@ import base.InfoReto;
 import base.Visualizador;
 
 /**
- * Visualizador por consola para el bloque del termostato.
- * Centraliza toda la presentación formateada de percepciones, acciones y eventos del entorno.
+ * Visualizador por consola para el bloque del termostato. Centraliza toda la presentación
+ * formateada de percepciones, acciones y eventos del entorno.
  */
 public class VisualizadorTermostato implements Visualizador<SensoresTermostato, AccionTermostato> {
 
@@ -31,17 +31,25 @@ public class VisualizadorTermostato implements Visualizador<SensoresTermostato, 
             System.out.println("Reto actual: ID " + retoActual.id());
         }
         System.out.println("Temperatura actual: " + sensores.temperaturaActual() + " °C");
-        System.out.println("Límites permitidos: [" + sensores.limiteInferior() + ", " + sensores.limiteSuperior() + "] °C");
+        System.out.println(
+                "Límites permitidos: ["
+                        + sensores.limiteInferior()
+                        + ", "
+                        + sensores.limiteSuperior()
+                        + "] °C");
         System.out.println("Temperatura objetivo: " + sensores.temperaturaObjetivo() + " °C");
     }
 
     @Override
-    public void mostrarAccion(AccionTermostato accion, String resultado, EstadoControl nuevoEstado) {
+    public void mostrarAccion(
+            AccionTermostato accion, String resultado, EstadoControl nuevoEstado) {
         System.out.println(
-                "Acción: " + accion
-                + " | Resultado: " + resultado
-                + " | Estado: " + nuevoEstado.runStatus()
-        );
+                "Acción: "
+                        + accion
+                        + " | Resultado: "
+                        + resultado
+                        + " | Estado: "
+                        + nuevoEstado.runStatus());
     }
 
     @Override
@@ -51,8 +59,13 @@ public class VisualizadorTermostato implements Visualizador<SensoresTermostato, 
 
     @Override
     public void mostrarFin(EstadoControl estadoFinal) {
-        System.out.println("Ejecución finalizada" + (retoActual != null ? " (Reto ID: " + retoActual.id() + ")" : "")
-                + ": " + estadoFinal.runStatus()
-                + (estadoFinal.reasonCode() != null ? " | Motivo: " + estadoFinal.reasonCode() : ""));
+        System.out.println(
+                "Ejecución finalizada"
+                        + (retoActual != null ? " (Reto ID: " + retoActual.id() + ")" : "")
+                        + ": "
+                        + estadoFinal.runStatus()
+                        + (estadoFinal.reasonCode() != null
+                                ? " | Motivo: " + estadoFinal.reasonCode()
+                                : ""));
     }
 }
