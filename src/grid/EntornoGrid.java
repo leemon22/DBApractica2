@@ -169,6 +169,15 @@ public class EntornoGrid extends Entorno<SensoresGrid, Direccion> {
         return ultimosSensores != null && ultimosSensores.enObjetivo();
     }
 
+    @Override
+    public void cerrarRun() throws IOException, InterruptedException {
+        boolean estabaActivo = isActivo();
+        super.cerrarRun();
+        if (estabaActivo && !isActivo()) {
+            visualizador.mostrarFin(estadoActual);
+        }
+    }
+
     // --- Validación de Capacidades del Reto ---
 
     private void validarCapacidades(InfoReto reto) {
