@@ -3,8 +3,8 @@ package base;
 import jade.core.Agent;
 
 /**
- * Clase base abstracta para agentes JADE situados en DBA Lab.
- * Coordina la inicialización de componentes, el inicio del run y el cierre controlado.
+ * Clase base abstracta para agentes JADE situados en DBA Lab. Coordina la inicialización de
+ * componentes, el inicio del run y el cierre controlado.
  *
  * @param <S> tipo de percepciones (debe implementar {@link Sensor})
  * @param <A> tipo de acciones (debe implementar {@link Accion})
@@ -12,7 +12,6 @@ import jade.core.Agent;
 public abstract class Agente<S extends Sensor, A extends Accion> extends Agent {
 
     protected Entorno<S, A> entorno;
-    protected BucleAgentico<S, A> bucle;
 
     /**
      * Instancia y devuelve el entorno y el bucle agéntico específicos del agente.
@@ -28,13 +27,13 @@ public abstract class Agente<S extends Sensor, A extends Accion> extends Agent {
         try {
             ComponentesAgente<S, A> componentes = iniciar();
             this.entorno = componentes.entorno();
-            this.bucle = componentes.bucle();
 
             this.entorno.iniciarRun();
-            addBehaviour(this.bucle);
+            addBehaviour(componentes.bucle());
 
         } catch (Exception e) {
-            System.err.println("Error crítico durante la inicialización del agente: " + e.getMessage());
+            System.err.println(
+                    "Error crítico durante la inicialización del agente: " + e.getMessage());
             e.printStackTrace();
             doDelete();
         }

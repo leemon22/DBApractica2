@@ -2,7 +2,8 @@ package base;
 
 /**
  * Contrato para desacoplar la emisión de eventos y presentación del entorno de su lógica operativa.
- * Permite alternar fácilmente entre presentaciones por consola o interfaces gráficas sin modificar el entorno.
+ * Permite alternar fácilmente entre presentaciones por consola o interfaces gráficas sin modificar
+ * el entorno.
  *
  * @param <S> tipo de sensores que percibe el agente
  * @param <A> tipo de acciones que ejecuta el agente
@@ -19,7 +20,7 @@ public interface Visualizador<S extends Sensor, A extends Accion> {
     /**
      * Notifica el inicio de un run en el entorno.
      *
-     * @param runId  identificador de la ejecución
+     * @param runId identificador de la ejecución
      * @param estado estado inicial del run
      */
     void mostrarInicio(String runId, EstadoControl estado);
@@ -34,8 +35,8 @@ public interface Visualizador<S extends Sensor, A extends Accion> {
     /**
      * Notifica el resultado de ejecutar una acción en el entorno.
      *
-     * @param accion      acción semántica ejecutada
-     * @param resultado   resultado de la acción (p. ej. "APPLIED", "REJECTED")
+     * @param accion acción semántica ejecutada
+     * @param resultado resultado de la acción (p. ej. "APPLIED", "REJECTED")
      * @param nuevoEstado nuevo estado de control tras la acción
      */
     void mostrarAccion(A accion, String resultado, EstadoControl nuevoEstado);
@@ -59,13 +60,13 @@ public interface Visualizador<S extends Sensor, A extends Accion> {
      *
      * @param mensaje texto a mostrar
      */
-    default void mostrarMensaje(String mensaje) {
-    }
+    default void mostrarMensaje(String mensaje) {}
 
     /**
-     * Solicita al usuario la selección de un reto cuando existen múltiples alternativas disponibles.
-     * Las implementaciones interactivas (por consola o interfaz gráfica) pueden solicitar la elección al usuario;
-     * la implementación por defecto selecciona el primer reto de la lista.
+     * Solicita al usuario la selección de un reto cuando existen múltiples alternativas
+     * disponibles. Las implementaciones interactivas (por consola o interfaz gráfica) pueden
+     * solicitar la elección al usuario; la implementación por defecto selecciona el primer reto de
+     * la lista.
      *
      * @param retos lista de retos compatibles disponibles
      * @return reto seleccionado

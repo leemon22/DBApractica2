@@ -100,10 +100,9 @@ classDiagram
         }
         class Accion {
             <<interface>>
-            +getCodigoAccion() String
         }
         class Configuracion {
-            +getUrlLaboratorio()
+            +getUrlApi()
             +getToken()
         }
         class ClienteHttpDba {
@@ -155,9 +154,8 @@ classDiagram
             #takeDown()
         }
         class BucleAgentico~S,A~ {
-            <<abstract>>
-            #antes()*
-            #despues()*
+            #antes()
+            #despues()
             +action()
             +done()
         }
@@ -178,7 +176,7 @@ classDiagram
 ```
 
 - **Contratos `Sensor` y `Accion`:** tipan fuertemente `Entorno<S, A>`, `Politica<S, A>`, `Agente<S, A>` y `BucleAgentico<S, A>` sin necesidad de casts inseguros ni supresión de advertencias.
-- **Protección contra saturación y protocolo HTTP:** `ClienteHttpDba` incluye un retardo configurable entre peticiones (500 ms por defecto) para respetar la concurrencia del laboratorio compartido, timeout de petición de 15 segundos y cabecera `Content-Type` solo en peticiones con cuerpo.
+- **Protección contra saturación y protocolo HTTP:** `ClienteHttpDba` incluye un retardo configurable entre peticiones (50 ms por defecto) para respetar la concurrencia del laboratorio compartido, timeout de petición de 15 segundos y cabecera `Content-Type` solo en peticiones con cuerpo.
 - **Ciclo de vida y cierre:** `Agente` es abstracto y coordina `iniciar()` (que devuelve `ComponentesAgente`), `entorno.iniciarRun()` y `addBehaviour(bucle)`. En `takeDown()` invoca automáticamente `entorno.cerrarRun()` para no dejar runs zombie bloqueando el token del alumno.
 
 ---
@@ -204,13 +202,13 @@ Cámara refrigerada. Cada acción aplicada avanza la simulación y puede sufrir 
 
 | Clase | Responsabilidad |
 |---|---|
-| `SensoresTermostato` | *Record* inmutable con `temperaturaActual`, `limiteInferior`, `limiteSuperior` y `temperaturaObjetivo`. Implementa `Sensor` de forma pura, sin dependencias de JSON. |
-| `AccionTermostato` | *Enum* `ON`/`OFF` que implementa `Accion` con sus códigos de acción en la API. |
+| `SensoresTermostato` | *Record* inmutable con la temperatura actual y un `LimitesTermostato` que contiene límites y objetivo. Implementa `Sensor`, sin dependencias de JSON. |
+| `AccionTermostato` | *Enum* `ON`/`OFF` que implementa `Accion`. El entorno traduce cada decisión al código de la API. |
 | `VisualizadorTermostato` | Implementa `Visualizador<SensoresTermostato, AccionTermostato>`, formateando percepciones, acciones y estados por consola. |
 | `EntornoTermostato` | Extiende `Entorno<SensoresTermostato, AccionTermostato>` sobre DBA Lab. Valida sensores/acciones, inicia el run, lee percepciones y ejecuta acciones delegando la presentación en el visualizador. |
 | `PoliticaTermostato` | Implementa `Politica<SensoresTermostato, AccionTermostato>`: enciende refrigeración si `temperaturaActual >= temperaturaObjetivo`; en caso contrario la apaga. |
 | `AgenteTermostato` | Extiende `base.Agente`, instanciando en `iniciar()` el entorno, la política y el bucle agéntico del termostato. |
-| `BucleAgenticoTermostato` | Extiende `base.BucleAgentico`, comprobando en `antes()` y `despues()` si el entorno sigue activo. |
+| `BucleAgentico` | Bucle común de Base, usado directamente por el termostato. Comprueba la actividad antes y después de cada acción. |
 
 ```mermaid
 classDiagram
@@ -218,7 +216,7 @@ classDiagram
     PoliticaTermostato ..|> Politica : implementa
     VisualizadorTermostato ..|> Visualizador : implementa
     AgenteTermostato --|> Agente : extiende
-    BucleAgenticoTermostato --|> BucleAgentico : extiende
+    AgenteTermostato ..> BucleAgentico : crea
     EntornoTermostato --> ClienteHttpDba : usa
     EntornoTermostato o-- VisualizadorTermostato : notifica
     EntornoTermostato ..> SensoresTermostato : crea
@@ -268,7 +266,7 @@ Los retos se seleccionan por `environmentType` (`GRID_2D`) y capacidades anuncia
 Navegación por **seguimiento de muros: Bug0 con progreso y elección dinámica de mano** (Tema 2, indicación del profesor). El agente solo percibe sus cuatro vecinas, así que no planifica sobre un mapa: avanza hacia el objetivo mientras puede y rodea los obstáculos cuando no.
 
 El repositorio cuenta con dos implementaciones de la política:
-- **`PoliticaGrid` (V1, baseline):**
+- **`PoliticaGrid` (V1, referencia en `test/grid`):**
   - **ACERCAMIENTO:** se mueve a la primera dirección libre que reduce la distancia Manhattan al objetivo, con desempate fijo N, E, S, O.
   - **SEGUIMIENTO:** si ninguna dirección que acerca está libre, guarda la distancia `d0`, elige mano (la celda lateral libre más cercana al objetivo) y rodea el obstáculo hasta que está más cerca que `d0`, el camino hacia el objetivo está libre y el objetivo queda en el lado libre, el contrario al muro (*criterio lateral*).
 - **`PoliticaGridV2` (V2, optimizada y activa en `AgenteGrid`):**
@@ -288,10 +286,10 @@ El detalle (giros relativos, condición de salida, salvaguardas contra ciclos y 
 | `SensoresGrid` | *Record* con posición, objetivo, direcciones bloqueadas y energía. | Rodrigo / Martín | Hecho |
 | `VisualizadorGridCli` | Implementa `Visualizador<SensoresGrid, Direccion>`, mostrando métricas, mapa ASCII autoescalable y selección interactiva de mapas por CLI. | Pedro | Hecho |
 | `EntornoGrid` | Extiende `Entorno<SensoresGrid, Direccion>` sobre DBA Lab. Gestiona la selección del mapa/reto, lee percepciones, cachea objetivo y ejecuta movimientos. | Pedro | Hecho |
-| `PoliticaGrid` | Implementa `Politica<SensoresGrid, Direccion>` (V1 inicial) con máquina de estados ACERCAMIENTO / SEGUIMIENTO y salida por criterio lateral. | Rodrigo | Hecho |
+| `PoliticaGrid` (en `test/grid`) | Referencia de pruebas que implementa `Politica<SensoresGrid, Direccion>` (V1 inicial) con máquina de estados ACERCAMIENTO / SEGUIMIENTO y salida por criterio lateral. | Rodrigo | Hecho |
 | `PoliticaGridV2` | Implementa `Politica<SensoresGrid, Direccion>` (V2 optimizada, activa) con eje dominante, inercia direccional, despegue coherente y ciclo de vida. | Rodrigo / Pedro | Hecho |
-| `AgenteGrid` | Extiende `base.Agente`, instanciando el entorno, política (`PoliticaGridV2`) y bucle para Grid sin argumentos de JADE. | Pedro | Hecho |
-| `BucleAgenticoGrid` | Extiende `base.BucleAgentico`, gestionando la parada por objetivo alcanzado o fin de run (captura `ParadaNavegacion` de V1 y V2). | Pedro | Hecho |
+| `AgenteGrid` | Extiende `base.Agente`, instanciando el entorno, política (`PoliticaGridV2`) y bucle para Grid; se crea sin argumentos de JADE. | Pedro | Hecho |
+| `BucleAgenticoGrid` | Extiende `base.BucleAgentico`, gestionando navegación, parada y reinicio entre runs. Captura las paradas de la política V2 activa. | Pedro | Hecho |
 | `LanzadorGrid` | Punto de entrada que arranca JADE e inicia `AgenteGrid`. | Pedro | Hecho |
 | Detección de ciclos y control de energía | Ante un ciclo, cambia de mano y desanda el último paso; si se repite, se para. También se para si la energía finita se agota. Dentro de `PoliticaGrid` y `PoliticaGridV2`. | Martín / Pedro | Hecho |
 | `SimuladorGrid` | `Entorno` local con los 7 mapas del guion, para probar sin VPN ni runs. | Cristina | Pendiente |
@@ -340,7 +338,8 @@ classDiagram
     AgenteGrid --|> Agente : extiende
     BucleAgenticoGrid --|> BucleAgentico : extiende
     EntornoGrid --> ClienteHttpDba : usa
-    EntornoGrid o-- VisualizadorGridCli : notifica
+    EntornoGrid o-- Visualizador : notifica
+    VisualizadorGridSwing ..|> Visualizador : implementa
     EntornoGrid ..> SensoresGrid : crea
     SensoresGrid --> Posicion : contiene
     PoliticaGrid ..> SensoresGrid : lee
@@ -393,12 +392,87 @@ Runs fallidos que sirvieron para comparar las políticas:
 - [x] Extraer a `base` la lógica común de DBA Lab (descubrimiento, validación de capacidades, lectura de `control`, sensores y acciones): clase abstracta `base.Entorno`
 - [ ] Comprobar si JADE se cierra al terminar el agente (el lanzador solo usa `setCloseVM(true)`)
 - [x] Grid: `Direccion`, `Posicion` y `SensoresGrid`
-- [x] Grid: `EntornoGrid`, `AgenteGrid`, `BucleAgenticoGrid`, `VisualizadorGridCli` y `LanzadorGrid`
-- [x] Grid: `PoliticaGrid` (V1), `PoliticaGridV2` (V2, activa), detección de ciclos y control de energía
-- [x] Grid: pruebas locales (`PoliticaGridPrueba`) y banco de los mapas del guion (`BancoMapasGrid`)
-- [ ] Grid: `SimuladorGrid` como `Entorno` local (opcional: `BancoMapasGrid` ya prueba las políticas en los mapas del guion)
-- [x] Grid: primera tanda resuelta
-- [x] Grid: segunda tanda resuelta
-- [ ] Grid: registrar en la tabla de resultados los runs de todos los retos
-- [ ] Entrega del código (25/11/2026)
-- [ ] Vídeo de presentación (en curso)
+- [ ] Grid: `EntornoDba` en `base` y `EntornoGrid`
+- [ ] Grid: `SimuladorGrid` con los mapas de la primera tanda
+- [ ] Grid: `PoliticaGrid` y `LanzadorGrid`
+- [ ] Grid: primera tanda resuelta
+- [ ] Grid: segunda tanda resuelta
+- [ ] Entrega del código (18/11/2026)
+- [ ] Vídeo de presentación
+
+### Interfaz Swing de Grid
+
+Ejecutar `src/lanzadores/LanzadorGrid.java` con **Run File (Mayús+F6)**. Al arrancar el propio agente pregunta si se quiere **Ventana Swing** o **Consola**. Cerrar ese selector cancela sin iniciar un run. Requiere JDK 25, las dependencias locales, config.properties y conexión UGR/VPN. Run Project sigue configurado para Termostato.
+
+El lanzador crea un único `AgenteGrid` con argumentos `null`. El agente pregunta el tipo de interfaz en setup y crea la presentación elegida en iniciar mediante `FabricaPresentacionGrid`; después construye el entorno y su política. El entorno recibe esa presentación mediante un constructor Java ordinario, no por argumentos de JADE. El agente no importa componentes Swing; la fábrica encapsula su construcción. No hay registros globales ni referencias recibidas mediante getArguments. El intercambio de percepciones y resultados reutiliza `Visualizador`.
+
+- **Reiniciar:** solicita detener el run, espera su cierre y vuelve a descubrir/seleccionar nivel. El mismo agente permanece disponible; se reinician el estado de la política, sensores y mapa para el siguiente run. Cancelar la selección deja la ventana disponible.
+- **Finalizar / X:** solicita salir, cierra el run y la ventana. El lanzador observa la terminación del agente y cierra la plataforma desde un hilo externo. Una petición ya en curso puede terminar antes de la parada.
+- Si falla el cierre, se bloquean los reinicios y se permite Finalizar mostrando el aviso correspondiente.
+
+El controlador coordina el estado de la ejecución y las solicitudes de reinicio y salida. No crea agentes ni posee referencias a JADE. La selección, las peticiones HTTP y la espera de órdenes se realizan en el hilo del agente; los componentes Swing se actualizan en el EDT. Se conserva `VisualizadorGridCli`, que ejecuta un único run y respeta `DBA_CHALLENGE_ID`. Se puede omitir el selector con `-Ddba.grid.ui=cli` o `-Ddba.grid.ui=swing`. Sin entorno gráfico se utiliza consola. Reiniciar en la ventana vuelve a elegir nivel, manteniendo el tipo de interfaz seleccionado al arrancar.
+
+Colores: oscuro para desconocido, claro para libre y rojo oscuro (`#8B2635`) para muro/borde. El agente es un círculo verde y el objetivo un contorno naranja. La escala se adapta al mapa/ventana y la energía se identifica como última percepción.
+
+```sh
+java -Ddba.jade.port=11099 -cp build/classes:lib/jade.jar:lib/gson-2.15.0.jar lanzadores.LanzadorGrid
+```
+
+El puerto es opcional (1099 por defecto). Las políticas de navegación conservan la implementación de main.
+
+Pruebas locales: `test/grid/vista/MapaExploradoPrueba.java` verifica y renderiza el mapa con datos simulados; `test/grid/control/ControladorGridPrueba.java` comprueba el bucle y el entorno con reinicio, cancelación, cierre fallido y salida inicial. No necesitan VPN ni credenciales. `ArranqueSinArgumentosPrueba` valida el lanzador, el agente real y la salida de JADE frente a un servidor HTTP local: debe ejecutarse en un directorio temporal vacío, como proceso separado, para proteger la configuración personal.
+
+
+### Organización del código de la interfaz
+
+El flujo de arranque es `LanzadorGrid → AgenteGrid → FabricaPresentacionGrid`. El agente construye su entorno y su bucle; la fábrica reúne la vista elegida y, en Swing, su controlador.
+
+| Clase | Responsabilidad |
+| --- | --- |
+| `ControladorGrid` | Recibir Reiniciar/Finalizar y coordinar la espera entre ejecuciones. |
+| `BucleAgenticoGrid` | Coordinar navegación, parada y reinicio entre ejecuciones. |
+| `EntornoGrid` | Descubrir retos, comunicarse con DBA Lab y emitir eventos mediante `Visualizador`. |
+| `VisualizadorGridSwing` | Presentar eventos y delegar los botones mediante dos acciones `Runnable`. |
+| `MapaExplorado` | Guardar las celdas percibidas y los desplazamientos confirmados. |
+| `PanelMapa` | Dibujar esa información y adaptar la escala a los límites del mapa. |
+
+El controlador tiene cinco estados: `PREPARANDO`, `EJECUTANDO`, `ESPERANDO`, `BLOQUEADO` y `SALIENDO`. Un reinicio pasa a PREPARANDO; el bucle detiene y cierra el run antes de seleccionar otro. Cancelar la selección vuelve a ESPERANDO. Un cierre fallido pasa a BLOQUEADO y solo permite salir. Finalizar pasa a SALIENDO y despierta cualquier espera.
+
+Los métodos sincronizados protegen el estado que comparten los botones y el agente. `esperarInicio()` usa `wait()`, que libera el bloqueo mientras el agente espera; Swing sigue atendiendo eventos. Las actualizaciones visuales se encolan en el EDT. Solo los diálogos y el cierre de ventana necesitan esperar un resultado y comparten el método `consultarEnEdt()`.
+
+En modo gráfico, `terminarEjecucion()` centraliza el cierre del run y la notificación final; repetir la llamada no vuelve a notificar el mismo run. La vista recibe datos y eventos, sin referencias al agente, a la política o al cliente HTTP. Los comentarios del código explican estas decisiones y las precauciones de cierre.
+
+
+### Organización común y comprobaciones locales
+
+`base` contiene los contratos y el ciclo compartido. `Agente` crea los componentes e inicia el run; `BucleAgentico` ejecuta percepción, decisión y acción. Su implementación comprueba la actividad antes y después de cada paso. Termostato la utiliza directamente; Grid especializa la comprobación de llegada y el tratamiento de las paradas de navegación.
+
+`Entorno` descubre y selecciona retos compatibles. Los entornos concretos validan capacidades y traducen sensores y acciones. `ClienteHttpDba` reúne cabeceras, retardo, envío y validación de respuestas: un fallo se comunica al llamador, sin repetir automáticamente una petición con efectos. Cada entorno carga la configuración una vez; el archivo tiene prioridad sobre las variables de entorno.
+
+La política inicial V1 se conserva en `test/grid` para compararla con V2, la única política de navegación en `src`. La limpieza mantiene sus diferencias: el orden cardinal de V1, el eje dominante y la inercia de V2, las condiciones de salida del muro y la memoria de ciclos. En V1 el cambio de mano se limita a una vez por ejecución; en V2 se restablece al iniciar o abandonar un rodeo. Esta revisión conserva ese comportamiento.
+
+Desde la raíz, con JDK 25 y Ant disponibles:
+
+```sh
+ant clean pruebas-locales
+```
+
+También está disponible `make test`. En NetBeans, las clases de prueba con `main` pueden abrirse y ejecutarse con **Run File (Mayús+F6)**; `ArranqueSinArgumentosPrueba` se ejecuta mediante el objetivo de Ant, que prepara su directorio aislado.
+
+El objetivo `pruebas-locales` compila y ejecuta:
+
+- Configuración y protocolo HTTP frente a un servidor local: descubrimiento, cuerpos, lecturas, rechazos, cierre y errores.
+- Decisiones del termostato, ciclo hasta SUCCEEDED y rechazo de capacidades incompletas antes de crear un run.
+- Políticas V1/V2 en mapas sintéticos, con ciclos y energía agotada.
+- Resumen del recorrido CLI: cuenta movimientos APPLIED, incluidas revisitas y llegada; excluye lecturas y rechazos.
+- Reinicio, cancelación, cierre fallido y salida del controlador de Grid.
+- Memoria y render del mapa Swing, con imágenes en `build/preview-grid/`.
+- Arranque y terminación del lanzador y agente JADE reales contra un servidor simulado, en un proceso y directorio temporales.
+
+Estas pruebas usan credenciales ficticias y no acceden a DBA Lab. La comprobación de la ventana interactiva y los 18 mapas oficiales se realiza por separado.
+
+
+El ciclo de Grid se concentra en `BucleAgenticoGrid`: antes de cada paso comprueba la parada, la actividad y la llegada al objetivo; al terminar un run, lo cierra y espera Reiniciar o Finalizar. Extiende directamente `BucleAgentico`, sin una segunda subclase de aplicación. La separación entre vista, controlador y agente se conserva.
+
+
+La longitud del recorrido en consola cuenta las acciones confirmadas como `APPLIED` durante el run. El contador empieza en cero en `mostrarInicio()` y aumenta en `mostrarAccion()`, aunque la acción sea la que alcanza el objetivo y no haya otra percepción. El conjunto `rastro` conserva su función de dibujar las celdas visitadas. Las lecturas y las acciones `REJECTED` no aumentan la longitud.

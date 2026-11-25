@@ -3,11 +3,11 @@ package base;
 import java.util.Optional;
 
 /**
- * Encapsula los datos oficiales del bloque "control" que devuelve la API de DBA Lab.
- * Representa el estado del ciclo de vida de la ejecución de forma desacoplada de la infraestructura HTTP/JSON.
+ * Encapsula los datos oficiales del bloque "control" que devuelve la API de DBA Lab. Representa el
+ * estado del ciclo de vida de la ejecución de forma desacoplada de la infraestructura HTTP/JSON.
  *
- * @param runId      identificador numérico de la ejecución en curso
- * @param runStatus  estado del ciclo de vida (ACTIVE, SUCCEEDED, FAILED, etc.)
+ * @param runId identificador numérico de la ejecución en curso
+ * @param runStatus estado del ciclo de vida (ACTIVE, SUCCEEDED, FAILED, etc.)
  * @param reasonCode motivo oficial de finalización o rechazo (puede ser nulo)
  */
 public record EstadoControl(String runId, RunStatus runStatus, String reasonCode) {
@@ -31,8 +31,9 @@ public record EstadoControl(String runId, RunStatus runStatus, String reasonCode
     }
 
     /**
-     * Traduce el texto del estado devuelto por el servidor al enumerado {@link RunStatus}.
-     * Si el servidor devuelve un valor desconocido o nulo, se asigna UNKNOWN para detener el bucle con seguridad.
+     * Traduce el texto del estado devuelto por el servidor al enumerado {@link RunStatus}. Si el
+     * servidor devuelve un valor desconocido o nulo, se asigna UNKNOWN para detener el bucle con
+     * seguridad.
      *
      * @param estado cadena con el nombre del estado recibido de la API
      * @return RunStatus correspondiente o UNKNOWN
@@ -49,9 +50,7 @@ public record EstadoControl(String runId, RunStatus runStatus, String reasonCode
         }
     }
 
-    /**
-     * Posibles estados oficiales de una ejecución según DBA Lab.
-     */
+    /** Posibles estados oficiales de una ejecución según DBA Lab. */
     public enum RunStatus {
         ACTIVE,
         SUCCEEDED,

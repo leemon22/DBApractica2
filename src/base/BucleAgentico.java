@@ -2,49 +2,39 @@ package base;
 
 import jade.core.Agent;
 import jade.core.behaviours.SimpleBehaviour;
+
 import java.util.Objects;
 
 /**
- * Bucle agéntico abstracto que ejecuta el ciclo de percepción-decisión-acción en el entorno.
- * Proporciona el esqueleto canónico del ciclo y los métodos gancho {@code antes()} y {@code despues()}.
+ * Bucle agéntico que ejecuta el ciclo de percepción-decisión-acción en el entorno. Proporciona el
+ * esqueleto del ciclo y los métodos {@code antes()} y {@code despues()}. Por defecto, ambos
+ * comprueban la actividad del run; las especializaciones pueden añadir otras condiciones de parada.
  *
  * @param <S> tipo de percepciones que extiende {@link Sensor}
  * @param <A> tipo de acciones que extiende {@link Accion}
  */
-public abstract class BucleAgentico<S extends Sensor, A extends Accion> extends SimpleBehaviour {
+public class BucleAgentico<S extends Sensor, A extends Accion> extends SimpleBehaviour {
 
     protected final Entorno<S, A> entorno;
     protected final Politica<S, A> politica;
     protected boolean terminado = false;
 
-    /**
-     * Construye el bucle agéntico asociando el agente JADE, el entorno y la política de decisión.
-     *
-     * @param agente   agente JADE que ejecuta este comportamiento
-     * @param entorno  entorno con el que interactúa el agente
-     * @param politica política que decide las acciones a partir de las percepciones
-     */
+    /** Asocia el comportamiento JADE con su entorno y su política. */
     public BucleAgentico(Agent agente, Entorno<S, A> entorno, Politica<S, A> politica) {
         super(Objects.requireNonNull(agente, "El agente no puede ser nulo"));
         this.entorno = Objects.requireNonNull(entorno, "El entorno no puede ser nulo");
         this.politica = Objects.requireNonNull(politica, "La política no puede ser nula");
     }
 
-    /**
-     * Tareas o comprobaciones previas al ciclo de percepción-decisión-acción.
-     * Si se detecta una condición de parada, debe marcar {@code terminado = true}.
-     *
-     * @throws Exception si ocurre un error durante las tareas previas
-     */
-    protected abstract void antes() throws Exception;
+    /** Comprueba la actividad antes de percibir. Las subclases pueden añadir otras paradas. */
+    protected void antes() throws Exception {
+        if (!entorno.isActivo()) terminado = true;
+    }
 
-    /**
-     * Tareas o comprobaciones posteriores a la acción física ejecutada.
-     * Si se detecta una condición de parada, debe marcar {@code terminado = true}.
-     *
-     * @throws Exception si ocurre un error durante las tareas posteriores
-     */
-    protected abstract void despues() throws Exception;
+    /** Detiene el ciclo si la acción ha terminado el run. */
+    protected void despues() throws Exception {
+        if (!entorno.isActivo()) terminado = true;
+    }
 
     @Override
     public void action() {
@@ -71,9 +61,7 @@ public abstract class BucleAgentico<S extends Sensor, A extends Accion> extends 
         }
     }
 
-    /**
-     * Gestiona excepciones producidas durante la ejecución del bucle ante fallos inesperados.
-     */
+    /** Gestiona excepciones producidas durante la ejecución del bucle ante fallos inesperados. */
     protected void manejarError(Exception e) {
         System.err.println("Error durante la ejecución del agente: " + e.getMessage());
         e.printStackTrace();
@@ -87,7 +75,8 @@ public abstract class BucleAgentico<S extends Sensor, A extends Accion> extends 
     @Override
     public int onEnd() {
         // Notificamos el estado de finalización oficial al visualizador si está disponible
-        entorno.getEstadoControl().ifPresent(estado -> entorno.getVisualizador().mostrarFin(estado));
+        entorno.getEstadoControl()
+                .ifPresent(estado -> entorno.getVisualizador().mostrarFin(estado));
         myAgent.doDelete();
         return 0;
     }
