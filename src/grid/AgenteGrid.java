@@ -10,6 +10,7 @@ public class AgenteGrid extends Agente<SensoresGrid, Direccion> {
     private FabricaPresentacionGrid.Tipo tipo;
     private FabricaPresentacionGrid.Presentacion presentacion;
 
+    // Primero se elige consola o ventana; después Agente.setup() crea el entorno e inicia el run.
     @Override
     protected void setup() {
         try {
@@ -25,6 +26,7 @@ public class AgenteGrid extends Agente<SensoresGrid, Direccion> {
         }
     }
 
+    // El entorno se queda con la presentación elegida; la política es la V2.
     @Override
     protected ComponentesAgente<SensoresGrid, Direccion> iniciar() {
         presentacion = FabricaPresentacionGrid.crear(tipo);
@@ -34,6 +36,7 @@ public class AgenteGrid extends Agente<SensoresGrid, Direccion> {
         return new ComponentesAgente<>(mundo, bucle);
     }
 
+    // Tres casos: falló el arranque con ventana, modo consola o modo ventana.
     @Override
     protected void takeDown() {
         if (entorno == null && presentacion != null && presentacion.control() != null) {
@@ -46,10 +49,12 @@ public class AgenteGrid extends Agente<SensoresGrid, Direccion> {
                                             + " salida"));
             return;
         }
+        // Consola: cierre normal del run, como el termostato.
         if (!(entorno instanceof EntornoGrid mundo) || !mundo.esInteractivo()) {
             super.takeDown();
             return;
         }
+        // Ventana: se cierra el run y luego la ventana, avisando si el cierre falló.
         Exception fallo = null;
         try {
             mundo.terminarEjecucion();

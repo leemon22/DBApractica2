@@ -64,8 +64,7 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
                     "El agente ya esta en el objetivo " + sensores.objetivo());
         }
 
-        // Si el entorno limita la energia y esta se agota, abortamos para evitar un fallo en el
-        // servidor
+        // Energía finita agotada: se para antes de enviar un movimiento que haría fallar el run.
         if (MODO_ENERGIA_FINITA.equals(sensores.modoEnergia()) && sensores.energiaRestante() <= 0) {
             throw new ParadaNavegacion(
                     "Energia finita agotada en "
@@ -75,7 +74,7 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
                             + ")");
         }
 
-        // En el primer paso, orienta al agente hacia el objetivo segun el eje dominante
+        // En el primer paso, orienta al agente hacia el objetivo según el eje dominante
         if (orientacion == null) {
             orientacion = direccionPrimaria(sensores.posicion(), sensores.objetivo());
         }
@@ -83,8 +82,7 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
         Direccion direccion;
         if (modo == Modo.SEGUIMIENTO) {
             if (debeSalir(sensores)) {
-                // El agente ha progresado y puede desengancharse del muro saliendo hacia el lado
-                // libre
+                // Ha progresado: se despega del muro saliendo por el lado libre.
                 modo = Modo.ACERCAMIENTO;
                 cambioDeManoIntentado = false;
                 direccion = direccionLadoDespegue();
@@ -95,7 +93,7 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
             direccion = acercarse(sensores);
         }
 
-        // Salvaguarda: chocar contra un obstaculo o salirse del mapa cancela el reto en el servidor
+        // Salvaguarda: chocar contra un obstáculo o salirse del mapa cancela el reto en el servidor
         if (sensores.bloqueado(direccion)) {
             throw new IllegalStateException(
                     "La politica eligio "
@@ -138,6 +136,7 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
         return cambioDeManoIntentado;
     }
 
+    /** Avanza por el eje dominante; si está bloqueado, empieza a rodear el obstáculo. */
     private Direccion acercarse(SensoresGrid sensores) {
         Direccion primaria = direccionPrimaria(sensores.posicion(), sensores.objetivo());
         if (sensores.libre(primaria)) {
@@ -146,12 +145,13 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
         return iniciarSeguimiento(sensores, primaria);
     }
 
+    /** Gira al lado libre que deja más cerca del objetivo; ese giro fija la mano y d0. */
     private Direccion iniciarSeguimiento(SensoresGrid sensores, Direccion intencion) {
         Direccion giroIzquierda = intencion.izquierda();
         Direccion giroDerecha = intencion.derecha();
 
         Direccion elegida;
-        // Compara que alternativa lateral libre deja al agente mas cerca del objetivo tras el giro
+        // Compara qué alternativa lateral libre deja al agente más cerca del objetivo tras el giro
         if (sensores.libre(giroIzquierda) && sensores.libre(giroDerecha)) {
             int distIzquierda = distanciaObjetivoTrasMover(sensores, giroIzquierda);
             int distDerecha = distanciaObjetivoTrasMover(sensores, giroDerecha);
@@ -160,7 +160,7 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
             } else if (distIzquierda < distDerecha) {
                 elegida = giroIzquierda;
             } else {
-                // En empate simetrico se conserva la mano previa para evitar oscilaciones erraticas
+                // En empate simétrico se conserva la mano previa para evitar oscilaciones erráticas
                 elegida = (mano == Mano.IZQUIERDA) ? giroDerecha : giroIzquierda;
             }
         } else if (sensores.libre(giroIzquierda)) {
@@ -168,18 +168,19 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
         } else if (sensores.libre(giroDerecha)) {
             elegida = giroDerecha;
         } else {
-            // Callejon sin salida: la unica alternativa transitable es dar media vuelta
+            // Callejón sin salida: la única alternativa transitable es dar media vuelta
             elegida = intencion.retroceso();
         }
 
         this.modo = Modo.SEGUIMIENTO;
-        // Si gira a la derecha, el obstaculo queda a la izquierda (mano IZQUIERDA), y viceversa
+        // Si gira a la derecha, el obstáculo queda a la izquierda (mano IZQUIERDA), y viceversa
         this.mano = (elegida == giroDerecha) ? Mano.IZQUIERDA : Mano.DERECHA;
         this.distanciaImpacto = sensores.distanciaAlObjetivo();
         this.cambioDeManoIntentado = false;
         return elegida;
     }
 
+    /** Detecta ciclos: al repetir estado cambia de mano una vez; si vuelve a repetir, se para. */
     private Direccion seguirMuroConMemoria(SensoresGrid sensores) {
         EstadoSeguimiento estado =
                 new EstadoSeguimiento(
@@ -189,15 +190,14 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
                         distanciaImpacto,
                         sensores.bloqueadas());
 
-        // Set.add devuelve false si ya habiamos pasado por esta casilla con el mismo rumbo y mano
+        // Set.add devuelve false si ya habíamos pasado por esta casilla con el mismo rumbo y mano
         if (!seguimientosVisitados.add(estado)) {
             if (cambioDeManoIntentado) {
                 throw new ParadaNavegacion(
                         "Ciclo de navegacion tras probar el cambio de mano en "
                                 + sensores.posicion());
             }
-            // Ante el primer bucle detectado, invierte la mano y retrocede para intentar salir por
-            // el otro sentido
+            // Primer ciclo: invierte la mano y retrocede para rodear el muro al revés.
             cambioDeManoIntentado = true;
             this.mano = (mano == Mano.DERECHA) ? Mano.IZQUIERDA : Mano.DERECHA;
             this.seguimientosVisitados.clear();
@@ -213,8 +213,7 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
 
     /** Prioridad: lado del muro, frente, lado contrario y retroceso. */
     private Direccion seguirMuro(SensoresGrid sensores) {
-        // La regla de la mano intenta primero rodear esquinas del muro hacia su lado antes de
-        // seguir recto
+        // Primero gira hacia el muro para no separarse de él al doblar las esquinas.
         Direccion primera = (mano == Mano.DERECHA) ? orientacion.derecha() : orientacion.izquierda();
         Direccion tercera = (mano == Mano.DERECHA) ? orientacion.izquierda() : orientacion.derecha();
 
@@ -234,8 +233,7 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
 
     /** Sale solo con progreso, lateral libre y producto escalar positivo hacia el objetivo. */
     private boolean debeSalir(SensoresGrid sensores) {
-        // 1. Debe existir progreso estricto respecto a la distancia al objetivo cuando comenzo el
-        // rodeo
+        // 1. Progreso estricto: más cerca que al empezar el rodeo (h < d0).
         if (sensores.distanciaAlObjetivo() >= distanciaImpacto) {
             return false;
         }
@@ -246,10 +244,11 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
             return false;
         }
 
-        // 3. El vector de salida debe apuntar hacia el semiplano del objetivo (no alejarse de el)
+        // 3. El vector de salida debe apuntar hacia el semiplano del objetivo (no alejarse de él)
         return apuntaHaciaSemiplanoObjetivo(sensores.posicion(), sensores.objetivo(), salida);
     }
 
+    /** Lado contrario al muro: por ahí se sale del rodeo. */
     private Direccion direccionLadoDespegue() {
         return (mano == Mano.DERECHA) ? orientacion.izquierda() : orientacion.derecha();
     }
@@ -258,7 +257,7 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
             Posicion origen, Posicion destino, Direccion direccion) {
         int dx = destino.x() - origen.x();
         int dy = destino.y() - origen.y();
-        // Si el producto escalar es positivo, el angulo con el objetivo es menor de 90 grados
+        // Si el producto escalar es positivo, el ángulo con el objetivo es menor de 90 grados
         return (dx * direccion.dx() + dy * direccion.dy()) > 0;
     }
 
@@ -266,6 +265,7 @@ public class PoliticaGridV2 implements Politica<SensoresGrid, Direccion> {
         return sensores.posicion().mover(direccion).distanciaManhattan(sensores.objetivo());
     }
 
+    /** Eje con más distancia al objetivo; en diagonal exacta mantiene el rumbo (inercia). */
     private Direccion direccionPrimaria(Posicion pos, Posicion objetivo) {
         int dx = objetivo.x() - pos.x();
         int dy = objetivo.y() - pos.y();

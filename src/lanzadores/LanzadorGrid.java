@@ -13,6 +13,7 @@ public class LanzadorGrid {
         try {
             Runtime runtime = Runtime.instance();
             runtime.setCloseVM(true);
+            // Sin la ventana RMA de JADE; el puerto se puede cambiar con -Ddba.jade.port.
             Profile perfil = new ProfileImpl();
             perfil.setParameter(Profile.GUI, "false");
             perfil.setParameter(Profile.MAIN_PORT, System.getProperty("dba.jade.port", "1099"));
@@ -22,7 +23,8 @@ public class LanzadorGrid {
             AgentController agente =
                     contenedor.createNewAgent("AgenteGrid", "grid.AgenteGrid", null);
             agente.start();
-            // Cerrar la plataforma desde fuera del agente, después de su takeDown.
+            // JADE no se cierra solo al borrar el agente. Este hilo espera a que desaparezca
+            // (getState() lanza StaleProxyException) y entonces apaga el contenedor.
             Thread cierre =
                     new Thread(
                             () -> {

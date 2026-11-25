@@ -21,21 +21,23 @@ public final class ControladorGrid {
     public static final class SeleccionCancelada extends RuntimeException {}
 
     private enum Estado {
-        PREPARANDO,
-        EJECUTANDO,
-        ESPERANDO,
-        BLOQUEADO,
-        SALIENDO
+        PREPARANDO, // eligiendo nivel o arrancando un run
+        EJECUTANDO, // el agente está navegando
+        ESPERANDO, // run terminado: se puede Reiniciar o Finalizar
+        BLOQUEADO, // no se pudo cerrar el run anterior: solo se permite salir
+        SALIENDO // se ha pulsado Finalizar
     }
 
     private final Vista vista;
     private Estado estado = Estado.PREPARANDO;
+    // true cuando toca elegir nivel: al arrancar y tras pulsar Reiniciar.
     private boolean inicioPendiente = true;
 
     public ControladorGrid(Vista vista) {
         this.vista = vista;
     }
 
+    /** Botón Reiniciar (hilo de Swing): despierta al agente para elegir otro nivel. */
     public synchronized void reiniciar() {
         if (estado != Estado.EJECUTANDO && estado != Estado.ESPERANDO) {
             return;
@@ -46,6 +48,7 @@ public final class ControladorGrid {
         notifyAll();
     }
 
+    /** Botón Finalizar o la X (hilo de Swing): pide al agente cerrar el run y salir. */
     public synchronized void finalizar() {
         if (estado == Estado.SALIENDO) {
             return;
@@ -69,6 +72,7 @@ public final class ControladorGrid {
         return true;
     }
 
+    /** El agente lo consulta en cada paso para dejar de moverse. */
     public synchronized boolean paradaSolicitada() {
         return estado == Estado.PREPARANDO
                 || estado == Estado.BLOQUEADO
@@ -79,6 +83,7 @@ public final class ControladorGrid {
         return estado == Estado.SALIENDO;
     }
 
+    /** El agente avisa de que el run ha empezado. */
     public synchronized void iniciada() {
         if (estado == Estado.SALIENDO) {
             return;
@@ -87,6 +92,7 @@ public final class ControladorGrid {
         vista.mostrarOperacion("Ejecución iniciada", false, false);
     }
 
+    /** El agente avisa de que el run terminó, salvo que ya se haya pedido otro nivel. */
     public synchronized void enEspera(String mensaje) {
         if (estado == Estado.SALIENDO || inicioPendiente) {
             return;

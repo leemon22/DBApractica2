@@ -15,6 +15,7 @@ public final class BucleAgenticoGrid extends BucleAgentico<SensoresGrid, Direcci
         this.navegacion = navegacion;
     }
 
+    // Para si se pulsa Reiniciar/Finalizar, si el run ya no está activo o si se ha llegado.
     @Override
     protected void antes() {
         if (mundo.paradaSolicitada() || !mundo.isActivo() || mundo.isEnObjetivo()) {
@@ -22,6 +23,7 @@ public final class BucleAgenticoGrid extends BucleAgentico<SensoresGrid, Direcci
         }
     }
 
+    // Una parada de la política (ciclo o energía) no es un fallo: solo se informa.
     @Override
     protected void manejarError(Exception error) {
         if (error instanceof PoliticaGridV2.ParadaNavegacion) {
@@ -31,6 +33,7 @@ public final class BucleAgenticoGrid extends BucleAgentico<SensoresGrid, Direcci
         }
     }
 
+    // Con ventana, acabar un run no termina el comportamiento: se espera otro nivel y se sigue.
     @Override
     public void action() {
         if (terminado && mundo.esInteractivo() && !prepararSiguienteRun()) {
@@ -39,6 +42,7 @@ public final class BucleAgenticoGrid extends BucleAgentico<SensoresGrid, Direcci
         super.action();
     }
 
+    /** Cierra el run anterior y espera a que la ventana pida otro; false si se finaliza. */
     private boolean prepararSiguienteRun() {
         try {
             mundo.terminarEjecucion();

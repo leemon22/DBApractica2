@@ -21,6 +21,7 @@ public abstract class Agente<S extends Sensor, A extends Accion> extends Agent {
      */
     protected abstract ComponentesAgente<S, A> iniciar() throws Exception;
 
+    /** Lo llama JADE al arrancar: crea los componentes, inicia el run y añade el bucle. */
     @Override
     protected void setup() {
         System.out.println("Agente " + getLocalName() + " iniciando...");
@@ -39,6 +40,7 @@ public abstract class Agente<S extends Sensor, A extends Accion> extends Agent {
         }
     }
 
+    /** Lo llama JADE tras doDelete(): cierra el run para no dejarlo abierto en DBA Lab. */
     @Override
     protected void takeDown() {
         System.out.println("Agente " + getLocalName() + " terminando ejecución.");
