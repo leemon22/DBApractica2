@@ -298,13 +298,13 @@ El detalle (giros relativos, condición de salida, salvaguardas contra ciclos y 
 
 ### Pruebas locales
 
-Las dos pruebas solo necesitan el JDK (sin JADE, VPN ni runs). Desde la raíz del proyecto, en Bash:
+Las dos pruebas de las políticas solo necesitan el JDK (sin JADE, VPN ni runs). La V1 está en `test/grid/` como referencia. Desde la raíz del proyecto, en Bash:
 
 ```bash
 clases_grid=$(mktemp -d)
 javac -d "$clases_grid" src/base/{Accion,Sensor,Politica}.java \
-  src/grid/{Direccion,Posicion,SensoresGrid,PoliticaGrid,PoliticaGridV2}.java \
-  test/grid/PoliticaGridPrueba.java test/grid/BancoMapasGrid.java
+  src/grid/{Direccion,Posicion,SensoresGrid,PoliticaGridV2}.java \
+  test/grid/{PoliticaGrid,PoliticaGridPrueba,BancoMapasGrid}.java
 java -cp "$clases_grid" grid.PoliticaGridPrueba     # casos sintéticos de V1 y V2
 java -cp "$clases_grid" grid.BancoMapasGrid         # banco completo, menos de 1 segundo
 ```
@@ -327,7 +327,7 @@ java -cp "$clases_grid" grid.BancoMapasGrid traza "Barrera en C" 9 6 6 6 v2
 | Mapas aleatorios con muros, en el banco (12.000 casos) | 11.999 | 11.974 |
 | Retos de DBA Lab resueltos | 17 de 19 (fallan 13 y 18 por energía) | **19 de 19** |
 
-Se entrega la **V2** porque es la que resuelve todos los retos oficiales. Las dos fallan por la misma razón: ante un muro largo eligen el lado por el que rodearlo mirando solo la celda vecina, y si es el lado largo agotan la energía. La V2 acierta en más retos oficiales, aunque en el reto 9 va justa: necesita 211 movimientos de 220. El análisis completo está en la sección 7.5 de `context.md`.
+Se entrega la **V2** porque es la que resuelve todos los retos oficiales. Las dos fallan por la misma razón: ante un muro largo eligen el lado por el que rodearlo mirando solo la celda vecina, y si es el lado largo agotan la energía. La V2 acierta en más retos oficiales, aunque en el reto 9 va justa: necesita 211 movimientos de 220. El análisis completo está en la sección 7.14 de `context.md`.
 
 ```mermaid
 classDiagram

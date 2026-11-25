@@ -37,7 +37,7 @@ La práctica utiliza **Java y JADE** para desarrollar agentes que perciben, deci
 
 | Integrante | Responsabilidad | Tareas |
 |---|---|---|
-| **Rodrigo** (Coordinación, algo más de carga) | Algoritmo de navegación e integración | `PoliticaGrid` (V1) con Bug0 con progreso y elección dinámica de mano (sección 7). **Hecho.** Banco de pruebas `test/grid/BancoMapasGrid.java` y comparación V1/V2 en simulación y en DBA Lab (sección 7.5). **Hecho (24/11).** Integración final y estrategia para la segunda tanda: se adopta la V2 (7.5). |
+| **Rodrigo** (Coordinación, algo más de carga) | Algoritmo de navegación e integración | `PoliticaGrid` (V1) con Bug0 con progreso y elección dinámica de mano (sección 7). **Hecho.** Banco de pruebas `test/grid/BancoMapasGrid.java` y comparación V1/V2 en simulación y en DBA Lab (sección 7.14). **Hecho (24/11).** Integración final y estrategia para la segunda tanda: se adopta la V2 (7.14). |
 | **Pedro** | Comunicación con DBA Lab y componentes de Grid | Generalizar la lógica común a `base.Entorno`; verificar que el termostato sigue dando `SUCCEEDED` (verificado en run 1686); implementar `EntornoGrid`, `AgenteGrid`, `BucleAgenticoGrid`, `VisualizadorGridCli` y `LanzadorGrid`. **Hecho.** `PoliticaGridV2`, política activa (22–23/11). **Hecho.** |
 | **Martín** | Tipos, orientación y salvaguardas | ~~`Posicion`, `SensoresGrid`, `AccionGrid` y enum `Direccion`~~ (los implementó Rodrigo el 10/11, ver 7.3); detección de ciclos y control de energía dentro de `PoliticaGrid` (PR #7, 20/11). **Hecho.** |
 | **Cristina** | Simulador, pruebas y vídeo | Simulador local (`Entorno` falso) con los 7 mapas del guion; trazas paso a paso; tabla de resultados por reto; guion del vídeo. Vídeo **en curso** (24/11). |
@@ -288,7 +288,7 @@ Acciones `grid.move.north`, `.east`, `.south`, `.west`; una colisión o salida d
 - **Desempate fijo:** arriba (N), derecha (E), abajo (S), izquierda (O).
 - **Estado interno:** modo, orientación (dirección del último movimiento), mano elegida, `d0`, conjunto de estados de seguimiento visitados y si ya se probó el cambio de mano.
 
-Esta sección describe la **V1** (`PoliticaGrid`). La política activa es la **V2** (`PoliticaGridV2`), que parte de este mismo algoritmo; sus diferencias y el motivo de la elección están en 7.5.
+Esta sección describe la **V1** (`PoliticaGrid`). La política activa es la **V2** (`PoliticaGridV2`), que parte de este mismo algoritmo; sus diferencias y el motivo de la elección están en 7.14.
 
 | Modo | Comportamiento | Cambio de modo |
 |---|---|---|
@@ -351,7 +351,7 @@ Con el criterio lateral, el recorrido supera a la distancia Manhattan en 0,5–7
 | `VisualizadorGridCli` | Implementa `Visualizador<SensoresGrid, Direccion>`, mostrando métricas, mapa ASCII autoescalable con memoria de recorrido y selección interactiva de mapas por CLI. **Hecho.** | Pedro |
 | `AgenteGrid` | Extiende `base.Agente`, instanciando el entorno, política y bucle para Grid sin argumentos de JADE. **Hecho.** | Pedro |
 | `BucleAgenticoGrid` | Extiende `base.BucleAgentico`, gestionando la parada por objetivo alcanzado o fin de run. **Hecho.** | Pedro |
-| `PoliticaGrid` (V1) | Implementa `Politica<SensoresGrid, Direccion>` con el algoritmo de 7.2 y la salida por criterio lateral. **Hecho (10/11).** Una instancia por run, porque guarda estado. Incluye la detección de ciclos y la parada por energía de Martín (PR #7). Resuelve todos los casos de los 7 mapas en `BancoMapasGrid`. **Ya no es la política activa** (ver 7.5). | Rodrigo |
+| `PoliticaGrid` (V1) | Implementa `Politica<SensoresGrid, Direccion>` con el algoritmo de 7.2 y la salida por criterio lateral. **Hecho (10/11).** Una instancia por run, porque guarda estado. Incluye la detección de ciclos y la parada por energía de Martín (PR #7). Resuelve todos los casos de los 7 mapas en `BancoMapasGrid`. **Ya no es la política activa** (ver 7.14). Desde el PR #12 está en `test/grid/`. | Rodrigo |
 | `PoliticaGridV2` | Evolución y optimización de `PoliticaGrid` activa en `AgenteGrid`. Incorpora: (1) navegación en acercamiento guiada por **eje dominante** en vez de orden cardinal fijo; (2) **inercia direccional** en empates diagonales a 45° para eliminar oscilaciones en zigzag; (3) **despegue coherente por lado libre** proyectado al semiplano del objetivo mediante producto escalar; (4) **detección de ciclos con memoria inmutable** (`EstadoSeguimiento`) y recuperación por inversión de mano y desandado; y (5) ciclo de vida reutilizable con `reiniciar()` y métodos de observabilidad. **Hecho.** | Rodrigo / Pedro |
 | ~~`DetectorCiclos`~~ / control de energía | Salvaguardas de 7.2. No se creó una clase aparte: están dentro de `PoliticaGrid` y `PoliticaGridV2`. **Hecho (PR #7).** | Martín |
 | `SimuladorGrid` | `Entorno` local con los 7 mapas transcritos del guion, para pruebas sin VPN ni runs. **Pendiente.** `BancoMapasGrid` cubre la prueba de las políticas sobre esos mapas, aunque no simula el `Entorno` completo. | Cristina |
@@ -480,6 +480,50 @@ Nueva salida de NetBeans pegada por el usuario, con cierre a las 22:54:14: reto 
 
 La nueva salida confirma el uso del resumen corregido en una ejecución real satisfactoria. La navegación no se modificó al corregir el contador. La diferencia 143 → 162 no debe interpretarse como un empeoramiento del algoritmo ni como exactamente 19 revisitas: las métricas anteriores eran distintas. El fragmento no contiene runId ni la traza completa de acciones. No acredita los demás retos ni el saldo de energía posterior al último movimiento.
 
+### 7.14 Política activa: `PoliticaGridV2` [DECISIÓN GRUPO, 24/11/2026]
+
+Pedro escribió `PoliticaGridV2` (22–23/11) a partir de la V1 y la conectó a `AgenteGrid`. Mantiene la regla de la mano y las salvaguardas, pero cambia el acercamiento, la elección de mano y la salida del rodeo:
+
+**[VERIFICADO el 25/11/2026]** Tras la limpieza del PR #12, la V1 está en `test/grid/PoliticaGrid.java` (solo como referencia) y la V2 se simplificó. `BancoMapasGrid` da exactamente los mismos números con el código limpio, así que la simplificación no cambió el comportamiento de ninguna de las dos.
+
+| | V1 (`PoliticaGrid`) | V2 (`PoliticaGridV2`) |
+|---|---|---|
+| Dirección de acercamiento | La primera libre que reduce h, en orden N, E, S, O | Solo la del eje con más distancia (`\|dx\|` frente a `\|dy\|`); en empate, la que llevaba (inercia) |
+| Cuándo empieza a rodear | Ninguna dirección que reduce h está libre | La dirección del eje dominante está bloqueada |
+| Empate al elegir mano | Mano derecha | Conserva la mano del rodeo anterior |
+| Condición de salida | `h < d0` + mejor movimiento libre + objetivo en el lado libre | `h < d0` + lado libre despejado + objetivo en ese lado (sin exigir que el acercamiento esté libre) |
+| Movimiento al salir | Hacia el objetivo | Hacia el lado libre, perpendicular al muro |
+| Cambio de mano por ciclo | Uno por run | Uno por rodeo |
+
+**Evidencia en simulación** (`BancoMapasGrid`, 24/11):
+
+| | V1 | V2 |
+|---|---|---|
+| 7 mapas del guion (59.290 casos) | 100 % | 100 % |
+| Pasos de más de media en los 7 mapas | 0–7,1 | 0–6,9 |
+| Muros aleatorios (12.000 casos) | 11.999 | 11.974 |
+| Peor caso, Barrera en C | 46 | 64 |
+
+Ninguna choca ni entra en un bucle sin fin: los fallos son paradas limpias por ciclo.
+
+**Evidencia en DBA Lab [VERIFICADO]:**
+
+| Reto | V1 | V2 |
+|---|---|---|
+| 2–8 (primera tanda) | Todos `SUCCEEDED` (según el grupo) | Todos `SUCCEEDED` (según el grupo) |
+| 9 · Corredores horizontales | `SUCCEEDED`, run 3142: 105 movimientos de 210 | Con 210: `FAILED` (`ENERGY_EXHAUSTED`), run 3141, a 1 celda del objetivo tras 210 movimientos. Con **220**: `SUCCEEDED` (confirmado por el grupo) |
+| 13 · Barreras en U y L | `FAILED` (`ENERGY_EXHAUSTED`), run 3144 | `SUCCEEDED`, run 3143: 107 movimientos de 160 |
+| 18 · Obstáculos dispersos A | `FAILED` (`ENERGY_EXHAUSTED`), run 3146 | `SUCCEEDED`, run 3145: 113 movimientos de 200 |
+| Resto de la segunda tanda | `SUCCEEDED` (según el grupo) | `SUCCEEDED` (según el grupo) |
+
+**Decisión:** se entrega la V2, que resuelve los 19 retos (la V1, 17).
+
+**Por qué falla cada una.** Las dos fallan por lo mismo: al encontrar un muro largo eligen el lado por el que rodearlo mirando solo la celda vecina. Si es el lado largo, gastan casi el doble de energía. Que acierte una u otra depende del mapa: en el reto 13, la V1 rodea el muro de la fila 40 por el oeste, hasta x = 9, y la V2 por el este, que está mucho más cerca; en el reto 9 ocurre al revés.
+
+**Riesgo conocido.** En el reto 9, la V2 necesita 211 movimientos de 220. La política es determinista y el mapa fijo, así que repite exactamente el mismo camino, pero el margen es de solo 9.
+
+**Mejora posible, no implementada.** Darse la vuelta si, durante un rodeo, la distancia al objetivo empeora más de un margen, o usar memoria del mapa con exploración por fronteras (Tema 2). Sería un cambio de algoritmo: requiere decisión del grupo.
+
 ## 8. Antes de un commit / push / merge
 
 1. Comparar la rama local con `main` (`git status`, `git diff`, y revisión de los archivos modificados). **No asumir que el archivo local está en GitHub solo porque compila.**
@@ -503,7 +547,7 @@ Al recibir este archivo, procede así:
 6. **Nunca solicites que el usuario pegue su token**. Si hacen falta pruebas, prepara mecanismos locales que no muestren credenciales y evita incluirlas en logs o documentación.
 7. En asuntos de JADE, evita repetir soluciones descartadas de cierre. Inspecciona la versión de JADE y el código real antes de proponer métodos o constantes.
 8. Recuerda que **Termostato ya tiene ejecuciones `SUCCEEDED` (368, 382 y 1686)**; prioriza revisión/integración/defensa antes de generar ejecuciones idénticas sin propósito.
-9. En Grid, diseña la navegación considerando percepción parcial, obstáculos terminales y energía limitada. El algoritmo acordado es el seguimiento de muros de la sección 7.2 (indicación del profesor), y la política entregada es `PoliticaGridV2` (7.5); no propongas sustituirlo por A* u otro planificador sin que el grupo lo decida. Antes de gastar runs en DBA Lab, prueba cualquier cambio de política con `test/grid/BancoMapasGrid.java`.
+9. En Grid, diseña la navegación considerando percepción parcial, obstáculos terminales y energía limitada. El algoritmo acordado es el seguimiento de muros de la sección 7.2 (indicación del profesor), y la política entregada es `PoliticaGridV2` (7.14); no propongas sustituirlo por A* u otro planificador sin que el grupo lo decida. Antes de gastar runs en DBA Lab, prueba cualquier cambio de política con `test/grid/BancoMapasGrid.java`.
 10. Documenta qué se cambió, por qué, qué resultado produjo y qué queda por revisar para el resto del grupo.
 
 ---
