@@ -9,9 +9,9 @@ La práctica tiene dos bloques evaluados por separado:
 | Bloque | Objetivo | Estado |
 |---|---|---|
 | [Parte 1: Termostato](#parte-1-termostato) | Mantener la temperatura dentro de los límites hasta que DBA Lab confirme `SUCCEEDED`. | Resuelto y defendido |
-| [Parte 2: Grid](#parte-2-grid) | Llegar al objetivo en una cuadrícula sin colisionar y antes de agotar la energía. | En desarrollo |
+| [Parte 2: Grid](#parte-2-grid) | Llegar al objetivo en una cuadrícula sin colisionar y antes de agotar la energía. | 19 de 19 retos resueltos con `PoliticaGridV2` |
 
-**Entrega del código y resolución de todos los retos: miércoles 18/11/2026.**
+**Entrega del código: miércoles 25/11/2026.**
 
 ---
 
@@ -75,7 +75,7 @@ La URL **debe terminar en `/api/v1`**: `ClienteHttpDba` le concatena directament
 | Termostato | `lanzadores.LanzadorTermostato` (clase principal del proyecto) |
 | Grid | `lanzadores.LanzadorGrid` |
 
-Se abre la interfaz de JADE (RMA), se inicia el agente y las percepciones y acciones se muestran por consola.
+Se inicia el agente y las percepciones y acciones se muestran por consola (el termostato abre además la interfaz de JADE, RMA). En Grid, el reto se elige en un menú por consola; para lanzarlo sin menú, se indica su ID con `DBA_CHALLENGE_ID` en `config.properties` o como variable de entorno (`DBA_CHALLENGE_ID=13 make grid`). Con `make termostato` y `make grid` se compila y ejecuta cada bloque.
 
 También se puede compilar y ejecutar desde terminal, situándose en la raíz del proyecto (ahí se busca `config.properties`):
 
@@ -255,7 +255,9 @@ La respuesta a una acción no incluye la posición ni la energía nuevas; hay qu
 
 **Retos:**
 - Primera tanda (5 puntos): Campo abierto, Muro vertical, Muro horizontal, Muro diagonal, Barrera en U, Barrera en arco y Barrera en C (10 × 10).
-- Segunda tanda (4 puntos): mundos desconocidos que el agente debe explorar.
+- Segunda tanda (4 puntos): 11 mundos desconocidos que el agente debe explorar, de unas 50 filas. Son Corredores horizontales, Corredores verticales, Barrera triangular, Recintos conectados, Barreras en U y L, Laberinto central, Bloques conectados, Disco con hendidura, Pasillos estrechos y Obstáculos dispersos A y B.
+
+**Energía (verificado en DBA Lab):** cada movimiento cuesta 1 de energía y leer sensores no cuesta nada. Cada reto tiene su presupuesto, entre 2,7 y 4,5 veces la distancia Manhattan entre inicio y objetivo en los retos medidos (por ejemplo, 220 en Corredores horizontales y 160 en Barreras en U y L).
 
 Los retos se seleccionan por `environmentType` (`GRID_2D`) y capacidades anunciadas, nunca por un ID fijo.
 
@@ -289,18 +291,43 @@ El detalle (giros relativos, condición de salida, salvaguardas contra ciclos y 
 | `AgenteGrid` | Extiende `base.Agente`, instanciando el entorno, política (`PoliticaGridV2`) y bucle para Grid; se crea sin argumentos de JADE. | Pedro | Hecho |
 | `BucleAgenticoGrid` | Extiende `base.BucleAgentico`, gestionando navegación, parada y reinicio entre runs. Captura las paradas de la política V2 activa. | Pedro | Hecho |
 | `LanzadorGrid` | Punto de entrada que arranca JADE e inicia `AgenteGrid`. | Pedro | Hecho |
-| Detección de ciclos y control de energía | Un cambio de mano por ejecución. Parada ante un nuevo ciclo o agotamiento de energía finita. | Martín / Pedro | Probado localmente |
+| Detección de ciclos y control de energía | Ante un ciclo, cambia de mano y desanda el último paso; si se repite, se para. También se para si la energía finita se agota. Dentro de `PoliticaGrid` y `PoliticaGridV2`. | Martín / Pedro | Hecho |
 | `SimuladorGrid` | `Entorno` local con los 7 mapas del guion, para probar sin VPN ni runs. | Cristina | Pendiente |
+| `PoliticaGridPrueba` | Pruebas de V1 y V2 con mapas sintéticos pequeños. | Martín / Pedro | Hecho |
+| `BancoMapasGrid` | Banco de V1 contra V2 sobre los 7 mapas del guion y mapas aleatorios. | Rodrigo | Hecho |
 
-La prueba de la política usa mapas sintéticos y solo necesita el JDK. Desde la raíz del proyecto, en Bash:
+### Pruebas locales
+
+Las dos pruebas de las políticas solo necesitan el JDK (sin JADE, VPN ni runs). La V1 está en `test/grid/` como referencia. Desde la raíz del proyecto, en Bash:
 
 ```bash
 clases_grid=$(mktemp -d)
 javac -d "$clases_grid" src/base/{Accion,Sensor,Politica}.java \
   src/grid/{Direccion,Posicion,SensoresGrid,PoliticaGridV2}.java \
-  test/grid/{PoliticaGrid,PoliticaGridPrueba}.java
-java -cp "$clases_grid" grid.PoliticaGridPrueba
+  test/grid/{PoliticaGrid,PoliticaGridPrueba,BancoMapasGrid}.java
+java -cp "$clases_grid" grid.PoliticaGridPrueba     # casos sintéticos de V1 y V2
+java -cp "$clases_grid" grid.BancoMapasGrid         # banco completo, menos de 1 segundo
 ```
+
+`BancoMapasGrid` ejecuta la V1 y la V2 sobre los mismos casos:
+- Los 7 mapas de la primera tanda (transcritos de `Pr2.pdf`), con todas las combinaciones de inicio y objetivo en celdas libres: 59.290 casos.
+- 300 mapas aleatorios de obstáculos sueltos y 300 de muros largos, de hasta 20 × 20.
+
+De cada política informa cuántos casos llegan, se paran por ciclo, entran en bucle, chocan o dan error, y cuántos pasos de más dan respecto a la distancia Manhattan. Termina con código 1 si hay algún choque o error. Cada fallo se lista como un comando `traza` que dibuja su recorrido:
+
+```bash
+java -cp "$clases_grid" grid.BancoMapasGrid traza "Barrera en C" 9 6 6 6 v2
+```
+
+### Comparación de V1 y V2
+
+| | V1 (`PoliticaGrid`) | V2 (`PoliticaGridV2`) |
+|---|---|---|
+| 7 mapas del guion, en el banco | 100 % | 100 % |
+| Mapas aleatorios con muros, en el banco (12.000 casos) | 11.999 | 11.974 |
+| Retos de DBA Lab resueltos | 17 de 19 (fallan 13 y 18 por energía) | **19 de 19** |
+
+Se entrega la **V2** porque es la que resuelve todos los retos oficiales. Las dos fallan por la misma razón: ante un muro largo eligen el lado por el que rodearlo mirando solo la celda vecina, y si es el lado largo agotan la energía. La V2 acierta en más retos oficiales, aunque en el reto 9 va justa: necesita 211 movimientos de 220. El análisis completo está en la sección 7.14 de `context.md`.
 
 ```mermaid
 classDiagram
@@ -323,21 +350,37 @@ classDiagram
 
 ### Pendiente de confirmar con el profesor
 
-- Si leer sensores consume energía o solo la consumen los movimientos.
-- Coste en energía de cada movimiento.
 - Si los retos se resuelven una vez por grupo o con el token de cada integrante.
 
 ### Resultados
 
-| Reto | Tanda | Run | Estado final | Energía restante |
-|---|---|---|---|---|
-| Campo abierto | 1 | | | |
-| Muro vertical | 1 | | | |
-| Muro horizontal | 1 | | | |
-| Muro diagonal | 1 | | | |
-| Barrera en U | 1 | | | |
-| Barrera en arco | 1 | | | |
-| Barrera en C | 1 | | | |
+Todos los retos dan `SUCCEEDED` con la V2. Las filas sin número de run se resolvieron con el token de otro integrante y falta registrar el run.
+
+| ID | Reto | Tanda | Política | Run | Estado final | Energía restante |
+|---|---|---|---|---|---|---|
+| 2 | Campo abierto | 1 | V2 | | `SUCCEEDED` | |
+| 3 | Muro vertical | 1 | V2 | | `SUCCEEDED` | |
+| 4 | Muro horizontal | 1 | V2 | | `SUCCEEDED` | |
+| 5 | Muro diagonal | 1 | V2 | | `SUCCEEDED` | |
+| 6 | Barrera en U | 1 | V2 | | `SUCCEEDED` | |
+| 7 | Barrera en arco | 1 | V2 | | `SUCCEEDED` | |
+| 8 | Barrera en C | 1 | V2 | | `SUCCEEDED` | |
+| 9 | Corredores horizontales | 2 | V2 | | `SUCCEEDED` (con 220 de energía) | |
+| 9 | Corredores horizontales | 2 | V1 | 3142 | `SUCCEEDED` | 105 de 210 |
+| 10 | Corredores verticales | 2 | V2 | | `SUCCEEDED` | |
+| 11 | Barrera triangular | 2 | V2 | | `SUCCEEDED` | |
+| 12 | Recintos conectados | 2 | V2 | | `SUCCEEDED` | |
+| 13 | Barreras en U y L | 2 | V2 | 3143 | `SUCCEEDED` | 53 de 160 |
+| 14 | Laberinto central | 2 | V2 | | `SUCCEEDED` | |
+| 15 | Bloques conectados | 2 | V2 | | `SUCCEEDED` | |
+| 16 | Disco con hendidura | 2 | V2 | | `SUCCEEDED` | |
+| 17 | Pasillos estrechos | 2 | V2 | | `SUCCEEDED` | |
+| 18 | Obstáculos dispersos A | 2 | V2 | 3145 | `SUCCEEDED` | 87 de 200 |
+| 19 | Obstáculos dispersos B | 2 | V2 | | `SUCCEEDED` | |
+
+Runs fallidos que sirvieron para comparar las políticas:
+- **3141:** V2 en el reto 9 con 210 de energía. Se quedó a 1 celda del objetivo, antes de que el profesor subiera la energía a 220.
+- **3144 y 3146:** V1 en los retos 13 y 18. Los dos acabaron en `ENERGY_EXHAUSTED`.
 
 ---
 
@@ -345,8 +388,8 @@ classDiagram
 
 - [x] Paquete `base`
 - [x] Termostato: sensores, acciones, entorno y política
-- [x] Termostato: reto resuelto (runs 368 y 382) y defendido
-- [ ] Extraer a `base` la lógica común de DBA Lab que hoy está en `EntornoTermostato` (descubrimiento, validación de capacidades, lectura de `control`, sensores y acciones)
+- [x] Termostato: reto resuelto (runs 368, 382 y 1686) y defendido
+- [x] Extraer a `base` la lógica común de DBA Lab (descubrimiento, validación de capacidades, lectura de `control`, sensores y acciones): clase abstracta `base.Entorno`
 - [ ] Comprobar si JADE se cierra al terminar el agente (el lanzador solo usa `setCloseVM(true)`)
 - [x] Grid: `Direccion`, `Posicion` y `SensoresGrid`
 - [ ] Grid: `EntornoDba` en `base` y `EntornoGrid`
