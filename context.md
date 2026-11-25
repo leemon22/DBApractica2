@@ -484,7 +484,6 @@ La nueva salida confirma el uso del resumen corregido en una ejecución real sat
 
 Pedro escribió `PoliticaGridV2` (22–23/11) a partir de la V1 y la conectó a `AgenteGrid`. Mantiene la regla de la mano y las salvaguardas, pero cambia el acercamiento, la elección de mano y la salida del rodeo:
 
-**[VERIFICADO el 25/11/2026]** Tras la limpieza del PR #12, la V1 está en `test/grid/PoliticaGrid.java` (solo como referencia) y la V2 se simplificó. `BancoMapasGrid` da exactamente los mismos números con el código limpio, así que la simplificación no cambió el comportamiento de ninguna de las dos.
 
 | | V1 (`PoliticaGrid`) | V2 (`PoliticaGridV2`) |
 |---|---|---|
