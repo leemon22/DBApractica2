@@ -26,9 +26,9 @@ DBApractica2/
 │   ├── termostato/    # Parte 1
 │   ├── grid/          # Parte 2
 │   └── lanzadores/    # Puntos de entrada (un main por bloque)
+├── test/              # Pruebas locales, sin VPN ni token
 ├── lib/               # jade.jar y gson-2.15.0.jar (no se versiona)
 ├── config.properties  # URL y token personal (no se versiona)
-├── context.md         # Contexto compartido para el equipo y sus asistentes de IA
 ├── build.xml          # Ant / NetBeans
 └── nbproject/
 ```
@@ -277,8 +277,6 @@ El repositorio cuenta con dos implementaciones de la política:
   - **Detección de ciclos y ciclo de vida:** memoria inmutable con `EstadoSeguimiento` en `Set` para invertir la mano ante bucles o lanzar `ParadaNavegacion`, junto con `reiniciar()` para reutilización en pruebas.
 - **Seguridad:** nunca se envía un movimiento hacia una dirección con *bumper* a `true`.
 
-El detalle (giros relativos, condición de salida, salvaguardas contra ciclos y energía) está en la sección 7 de `context.md`.
-
 | Clase | Responsabilidad | Responsable | Estado |
 |---|---|---|---|
 | `Direccion` | *Enum* N/E/S/O: desplazamiento (dx, dy) y giros relativos. Es la acción semántica pura del agente en la cuadrícula. | Rodrigo / Martín | Hecho |
@@ -327,7 +325,7 @@ java -cp "$clases_grid" grid.BancoMapasGrid traza "Barrera en C" 9 6 6 6 v2
 | Mapas aleatorios con muros, en el banco (12.000 casos) | 11.999 | 11.974 |
 | Retos de DBA Lab resueltos | 17 de 19 (fallan 13 y 18 por energía) | **19 de 19** |
 
-Se entrega la **V2** porque es la que resuelve todos los retos oficiales. Las dos fallan por la misma razón: ante un muro largo eligen el lado por el que rodearlo mirando solo la celda vecina, y si es el lado largo agotan la energía. La V2 acierta en más retos oficiales, aunque en el reto 9 va justa: necesita 211 movimientos de 220. El análisis completo está en la sección 7.14 de `context.md`.
+Se entrega la **V2** porque es la que resuelve todos los retos oficiales. Las dos fallan por la misma razón: ante un muro largo eligen el lado por el que rodearlo mirando solo la celda vecina, y si es el lado largo agotan la energía. La V2 acierta en más retos oficiales, aunque en el reto 9 va justa: necesita 211 movimientos de 220.
 
 ```mermaid
 classDiagram
